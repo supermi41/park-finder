@@ -1,4 +1,70 @@
-<!doctype html>
+#!/usr/bin/env python3
+"""
+Stage 8 — Unified map builder.
+Produces map.html: MapLibre + PMTiles map + right-side list panel.
+- Map: vector tiles (fast, small initial download)
+- List: lazy-loaded parcels.json on first 목록 tab click
+- Filters: apply to both map (setFilter) and list (re-render)
+- Excel: SheetJS download
+- Modals: 사용법 + 매칭 기준
+- Jump buttons: 등기부 / 토지이용 / 주소복사
+"""
+
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+PUB = ROOT / "public"
+OUT_HTML = ROOT / "map.html"
+
+PYEONG = 3.3058
+OWNER_ORDER = ["개인", "법인", "시 도유지", "군유지", "국유지",
+               "종교단체", "종중", "기타단체", "외국인 외국공공기관", "일본인 창씨명등"]
+COLORS = {
+    "개인": "#e63946", "법인": "#f4a261", "국유지": "#264653",
+    "시 도유지": "#2a9d8f", "군유지": "#588157", "종교단체": "#9b5de5",
+    "종중": "#b6ad90", "기타단체": "#6c757d", "외국인 외국공공기관": "#000000",
+    "일본인 창씨명등": "#d62828", "?": "#aaaaaa",
+}
+PARK_CATS = ["공원", "녹지", "광장", "유원지"]
+PARK_COLORS = {"공원": "#a8dadc", "녹지": "#b7e4c7", "광장": "#fee08b", "유원지": "#cbb9ff"}
+JIMOK_GROUPS = {
+    "자연/녹지": ["임야", "전", "답", "유지", "구거", "하천", "제방"],
+    "공원/잡종": ["공원", "잡종지"],
+    "건물용지": ["대"],
+    "도로/시설": ["도로", "주차장", "철도용지", "수도용지"],
+    "공공/기타": ["종교용지", "학교용지"],
+}
+JIMOK_GROUP_COLORS = {"자연/녹지":"#588157","공원/잡종":"#2a9d8f","건물용지":"#e63946",
+                      "도로/시설":"#6c757d","공공/기타":"#9b5de5"}
+
+
+def main():
+    stats = json.loads((PUB / "stats.json").read_text())
+    total = stats.get("total_parcels", 0)
+    private_total = stats.get("private_total", 0)
+    pct = stats.get("private_pct", 0)
+
+    html = HTML
+    for k, v in {
+        "__TOTAL__": f"{total:,}",
+        "__PRIVATE__": f"{private_total:,}",
+        "__PCT__": str(pct),
+        "__OWNER_ORDER__": json.dumps(OWNER_ORDER, ensure_ascii=False),
+        "__COLORS__": json.dumps(COLORS, ensure_ascii=False),
+        "__PARK_CATS__": json.dumps(PARK_CATS, ensure_ascii=False),
+        "__PARK_COLORS__": json.dumps(PARK_COLORS, ensure_ascii=False),
+        "__JIMOK_GROUPS__": json.dumps(JIMOK_GROUPS, ensure_ascii=False),
+        "__JIMOK_GROUP_COLORS__": json.dumps(JIMOK_GROUP_COLORS, ensure_ascii=False),
+        "__STATS__": json.dumps(stats, ensure_ascii=False),
+    }.items():
+        html = html.replace(k, v)
+
+    OUT_HTML.write_text(html, encoding="utf-8")
+    print(f"✅ {OUT_HTML.name}  ({OUT_HTML.stat().st_size // 1024} KB)")
+
+
+HTML = r"""<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
@@ -124,7 +190,7 @@
     <button type="button" id="open-methodology" class="tab" style="background:#f4f4f9;color:#0071e3;font-weight:600;">📋 매칭 기준</button>
     <div class="tabs">
       <button type="button" class="tab active" data-view="map">지도</button>
-      <button type="button" class="tab" data-view="list">목록 (46,001)</button>
+      <button type="button" class="tab" data-view="list">목록 (__TOTAL__)</button>
     </div>
   </div>
 </header>
@@ -167,8 +233,8 @@
 <div class="layout">
   <aside class="sidebar">
     <div class="stat-card">
-      <div class="big">37.8%</div>
-      <div class="label">서울 46,001건 중 사유지 17,399건</div>
+      <div class="big">__PCT__%</div>
+      <div class="label">서울 __TOTAL__건 중 사유지 __PRIVATE__건</div>
     </div>
     <h2>소유 구분
       <span class="toggle-all" id="toggle-all" style="margin-left:auto;">전체</span>
@@ -253,13 +319,13 @@
 <script src="https://unpkg.com/pmtiles@3.0.7/dist/pmtiles.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
-const COLORS = {"개인": "#e63946", "법인": "#f4a261", "국유지": "#264653", "시 도유지": "#2a9d8f", "군유지": "#588157", "종교단체": "#9b5de5", "종중": "#b6ad90", "기타단체": "#6c757d", "외국인 외국공공기관": "#000000", "일본인 창씨명등": "#d62828", "?": "#aaaaaa"};
-const ORDER = ["개인", "법인", "시 도유지", "군유지", "국유지", "종교단체", "종중", "기타단체", "외국인 외국공공기관", "일본인 창씨명등"];
-const PARK_CATS = ["공원", "녹지", "광장", "유원지"];
-const PARK_COLORS = {"공원": "#a8dadc", "녹지": "#b7e4c7", "광장": "#fee08b", "유원지": "#cbb9ff"};
-const JIMOK_GROUPS = {"자연/녹지": ["임야", "전", "답", "유지", "구거", "하천", "제방"], "공원/잡종": ["공원", "잡종지"], "건물용지": ["대"], "도로/시설": ["도로", "주차장", "철도용지", "수도용지"], "공공/기타": ["종교용지", "학교용지"]};
-const JIMOK_GROUP_COLORS = {"자연/녹지": "#588157", "공원/잡종": "#2a9d8f", "건물용지": "#e63946", "도로/시설": "#6c757d", "공공/기타": "#9b5de5"};
-const STATS = {"total_parcels": 46001, "private_total": 17399, "private_pct": 37.8, "owner_counts": {"개인": 10220, "법인": 7179, "군유지": 7828, "시 도유지": 11100, "국유지": 9119, "외국인 외국공공기관": 82, "종교단체": 241, "기타단체": 80, "종중": 138, "": 13, "일본인 창씨명등": 1}, "jimok_counts": {"대": 13075, "도로": 7395, "공원": 5904, "임야": 7975, "구거": 917, "주차장": 38, "사적지": 107, "하천": 1121, "종교용지": 91, "학교용지": 66, "잡종지": 1259, "전": 3570, "수도용지": 182, "답": 2430, "철도용지": 471, "체육용지": 12, "묘지": 265, "제방": 466, "유원지": 2, "과수원": 88, "유지": 344, "창고용지": 11, "주유소용지": 13, "공장용지": 23, "목장용지": 11, "": 165}, "park_type_counts": {"공원": 4050, "광장": 529, "녹지": 3024, "유원지": 7}, "sgg_counts": {"종로구": 3076, "중구": 1316, "동대문구": 1164, "성북구": 2371, "강북구": 821, "서대문구": 2203, "용산구": 1697, "성동구": 1161, "마포구": 1246, "동작구": 2102, "서초구": 2886, "강남구": 1731, "광진구": 571, "중랑구": 1262, "송파구": 1766, "노원구": 1884, "도봉구": 418, "의정부시": 264, "남양주시": 78, "은평구": 2163, "고양시 덕양구": 1785, "양천구": 537, "강서구": 1555, "영등포구": 1191, "부천시 원미구": 92, "부천시 오정구": 872, "구로구": 880, "김포시": 500, "광명시": 890, "부천시 소사구": 61, "금천구": 417, "관악구": 2117, "안양시 만안구": 15, "공주시": 1, "성남시 수정구": 294, "과천시": 2337, "강동구": 1790, "하남시": 487}, "sgg_private": {"종로구": 826, "중구": 434, "성북구": 1291, "강북구": 322, "서대문구": 525, "용산구": 920, "성동구": 484, "동대문구": 743, "마포구": 241, "동작구": 489, "서초구": 1004, "광진구": 129, "강남구": 721, "중랑구": 327, "노원구": 620, "도봉구": 65, "의정부시": 17, "남양주시": 7, "은평구": 1288, "고양시 덕양구": 744, "양천구": 168, "강서구": 344, "영등포구": 608, "부천시 오정구": 518, "구로구": 346, "김포시": 47, "부천시 원미구": 61, "광명시": 622, "부천시 소사구": 29, "금천구": 124, "안양시 만안구": 2, "관악구": 663, "공주시": 1, "성남시 수정구": 77, "과천시": 685, "송파구": 959, "하남시": 221, "강동구": 727}};
+const COLORS = __COLORS__;
+const ORDER = __OWNER_ORDER__;
+const PARK_CATS = __PARK_CATS__;
+const PARK_COLORS = __PARK_COLORS__;
+const JIMOK_GROUPS = __JIMOK_GROUPS__;
+const JIMOK_GROUP_COLORS = __JIMOK_GROUP_COLORS__;
+const STATS = __STATS__;
 const PYEONG = 3.3058;
 const PAGE_SIZE = 2000;
 
@@ -858,4 +924,8 @@ function downloadCsv() {
 }
 </script>
 </body>
-</html>
+</html>"""
+
+
+if __name__ == "__main__":
+    main()
