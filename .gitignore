@@ -1,0 +1,31 @@
+# Secrets
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Big raw data (regenerable via scripts/04_seoul_full.py)
+data/seoul/seoul_park_parcels_all.geojson
+data/seoul/seoul_parks.geojson
+data/seoul/_pre_ownership.geojson
+data/seoul/rn_addr_cache.json
+data/seoul/districts/
+data/samples/
+
+# Big built output (regenerable via scripts/05_build_seoul_map.py)
+public/parks.json
+public/parcels.json
+public/districts.json
+# Keep stats.json (tiny, useful for review)
+
+# Per-district checkpoint files in seoul/gangnam
+data/seoul/gangnam/parks.geojson
+data/seoul/gangnam/park_parcels_all.geojson
+data/seoul/gangnam/park_parcels_private.geojson
