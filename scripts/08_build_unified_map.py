@@ -71,7 +71,7 @@ HTML = r"""<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>핀파인더 · 서울시 공원지정 사유지</title>
+<title>핀파인더 · 전국 공원지정 사유지</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="manifest" href="manifest.json">
@@ -117,6 +117,16 @@ HTML = r"""<!doctype html>
   .chip { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
   .filter-row .count { margin-left:auto; color:#86868b; font-size:11px; font-weight:500; }
   .toggle-all { font-size:11px; color:#0071e3; cursor:pointer; user-select:none; font-weight:500; }
+  .sido-block { border-bottom:1px solid #f0f0f3; }
+  .sido-head { display:flex; align-items:center; gap:6px; padding:6px 4px; cursor:pointer;
+               user-select:none; font-size:12px; font-weight:600; color:#1d1d1f; }
+  .sido-head:hover { background:#f6f6f8; }
+  .sido-head .caret { font-size:9px; color:#888; transition:transform 0.15s; }
+  .sido-head.collapsed .caret { transform:rotate(-90deg); }
+  .sido-head input[type=checkbox] { margin:0; }
+  .sido-head .count { margin-left:auto; color:#86868b; font-size:10.5px; font-weight:500; }
+  .sido-body { padding-left:18px; }
+  .sido-body.collapsed { display:none; }
   .loading { position:absolute; inset:0; display:flex; align-items:center;
              justify-content:center; background:rgba(255,255,255,0.85); z-index:1000;
              font-size:13px; color:#444; flex-direction:column; gap:10px; }
@@ -227,7 +237,7 @@ HTML = r"""<!doctype html>
   <div class="brand">
     <button type="button" class="hamburger" id="hamburger-btn" aria-label="필터 메뉴">☰</button>
     <span style="font-size:18px;">📍</span>
-    <h1>핀파인더 · 서울시</h1>
+    <h1>핀파인더 · 전국</h1>
     <span class="sub">공원지정 필지 · 출처 V-World</span>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
@@ -280,7 +290,7 @@ HTML = r"""<!doctype html>
   <aside class="sidebar" id="sidebar">
     <div class="stat-card">
       <div class="big">__PCT__%</div>
-      <div class="label">서울 __TOTAL__건 중 사유지 __PRIVATE__건</div>
+      <div class="label">전국 __TOTAL__건 중 사유지 __PRIVATE__건</div>
     </div>
     <button type="button" id="preset-litigation" style="width:100%;padding:10px;margin-bottom:14px;background:linear-gradient(135deg,#0071e3,#0058b3);color:#fff;border:none;border-radius:10px;font-size:13px;cursor:pointer;font-weight:700;box-shadow:0 2px 8px rgba(0,113,227,0.25);">
       🎯 수용청구 후보 (원클릭)
@@ -290,8 +300,10 @@ HTML = r"""<!doctype html>
       <span class="toggle-all" id="toggle-all" style="margin-left:auto;">전체</span>
       <span class="toggle-all" id="only-private">사유지만</span></h2>
     <div id="owner-filters"></div>
-    <h2>자치구 <span class="toggle-all" id="sgg-all" style="margin-left:auto;">전체</span></h2>
-    <div id="sgg-filters" style="max-height:200px;overflow-y:auto;"></div>
+    <h2>자치구 (시·도 클릭하여 펼침)
+      <span class="toggle-all" id="sgg-all" style="margin-left:auto;">전체</span>
+      <span class="toggle-all" id="sgg-none" style="margin-left:4px;">해제</span></h2>
+    <div id="sgg-filters" style="max-height:260px;overflow-y:auto;border:1px solid #e5e5ea;border-radius:6px;padding:4px 6px;"></div>
     <h2>공원 시설 유형</h2>
     <div id="park-type-filters"></div>
 
@@ -493,8 +505,23 @@ function jimokFilterExpr() {
   return a.length === 0 ? ['==', ['get','jimok'], '__none__'] : ['in', ['get','jimok'], ['literal', a]];
 }
 function sggFilter() {
-  const a = Array.from(state.activeSggs);
-  return a.length === 0 ? ['==', ['get','sgg_nm'], '__none__'] : ['in', ['get','sgg_nm'], ['literal', a]];
+  const active = Array.from(state.activeSggs);
+  if (active.length === 0) return ['==', ['get','sgg_nm'], '__none__'];
+  // Group active composite keys by sido: avoid concat in filter (some MapLibre versions buggy)
+  const bySido = {};
+  for (const k of active) {
+    const idx = k.indexOf(' ');
+    if (idx < 0) continue;
+    const sido = k.substring(0, idx);
+    const sgg = k.substring(idx + 1);
+    (bySido[sido] = bySido[sido] || []).push(sgg);
+  }
+  const clauses = Object.entries(bySido).map(([sido, sggs]) =>
+    ['all', ['==', ['get','sido_nm'], sido], ['in', ['get','sgg_nm'], ['literal', sggs]]]
+  );
+  if (clauses.length === 0) return ['==', ['get','sgg_nm'], '__none__'];
+  if (clauses.length === 1) return clauses[0];
+  return ['any', ...clauses];
 }
 function parkCatFilter() {
   const a = Array.from(state.activeParkTypes);
@@ -578,15 +605,15 @@ function buildPopup(p) {
   const pricePerM = parseFloat(p.price_per_m2)||0;
   const pricePerPy = pricePerM*PYEONG;
   const addr = buildCleanAddr(p).replace(/'/g,'');
-  const py = parseInt(p.park_decision_year||0, 10);
+  const decYear = parseInt(p.park_decision_year||0, 10);
   const now = (new Date()).getFullYear();
   let sunsetLine = '';
-  if (py > 0) {
-    const elapsed = now - py;
+  if (decYear > 0) {
+    const elapsed = now - decYear;
     const sunsetIn = 20 - elapsed;
-    if (sunsetIn <= 0) sunsetLine = `<span style="color:#e63946;font-weight:600;">⚠️ 일몰 대상 (${py}년 결정, ${elapsed}년 경과)</span><br>`;
-    else if (sunsetIn <= 5) sunsetLine = `<span style="color:#f4a261;font-weight:600;">🟡 일몰 ${sunsetIn}년 남음 (${py}년 결정)</span><br>`;
-    else sunsetLine = `<small style="color:#888;">${py}년 결정 · 일몰까지 ${sunsetIn}년</small><br>`;
+    if (sunsetIn <= 0) sunsetLine = `<span style="color:#e63946;font-weight:600;">⚠️ 일몰 대상 (${decYear}년 결정, ${elapsed}년 경과)</span><br>`;
+    else if (sunsetIn <= 5) sunsetLine = `<span style="color:#f4a261;font-weight:600;">🟡 일몰 ${sunsetIn}년 남음 (${decYear}년 결정)</span><br>`;
+    else sunsetLine = `<small style="color:#888;">${decYear}년 결정 · 일몰까지 ${sunsetIn}년</small><br>`;
   }
   return `
     <b>${p.sgg_nm || ''} ${p.emd_nm || ''} ${p.jibun || ''}</b><br>
@@ -683,7 +710,8 @@ function renderList() {
   const jset = activeJimokSet();
   const cutoffYear = (new Date()).getFullYear() - state.minYearsSince;
   let rows = PARCELS_LIST.filter(p => {
-    if (!(state.activeOwners.has(p.owner_type) && jset.has(p.jimok) && state.activeSggs.has(p.sgg_nm))) return false;
+    const sggKey = `${p.sido_nm||''} ${p.sgg_nm||''}`;
+    if (!(state.activeOwners.has(p.owner_type) && jset.has(p.jimok) && state.activeSggs.has(sggKey))) return false;
     if (state.minYearsSince > 0) {
       const py = p.park_decision_year || 0;
       if (py === 0) return state.includeUnknownDate;
@@ -903,31 +931,106 @@ document.getElementById('preset-litigation').addEventListener('click', () => {
   alert('🎯 수용청구 후보 필터 적용\\n\\n• 사유지 (개인+법인)\\n• 지목: 자연/녹지·공원/잡종 (대·도로 제외)\\n• 공원·녹지·유원지 (광장 제외)\\n\\n[목록] 탭 → 면적·공시지가 정렬해서 큰 케이스부터 검토.\\n등기부 점프로 소유자 확인.');
 });
 
-// SGG
+// SGG — sido-grouped accordion. composite key = "{sido} {sgg}"
 const sggPanel = document.getElementById('sgg-filters');
-const sggKeys = Object.keys(STATS.sgg_counts).sort();
-sggKeys.forEach(sgg => {
-  state.activeSggs.add(sgg);
-  const tot = STATS.sgg_counts[sgg];
-  const priv = STATS.sgg_private[sgg] || 0;
-  const div = document.createElement('label');
-  div.className = 'filter-row';
-  div.innerHTML = `<input type="checkbox" checked data-sgg="${sgg}"><span style="flex:1;">${sgg}</span><span class="count">${priv}/${tot}</span>`;
-  sggPanel.appendChild(div);
+const SGG_BY_SIDO = STATS.sgg_by_sido || {};
+const SIDO_PRIORITY = [
+  '서울특별시','경기도','인천광역시',
+  '부산광역시','대구광역시','대전광역시','광주광역시','울산광역시','세종특별자치시',
+  '강원특별자치도','강원도',
+  '충청북도','충청남도',
+  '전북특별자치도','전라북도','전라남도',
+  '경상북도','경상남도',
+  '제주특별자치도',
+];
+const sidoOrder = Object.keys(SGG_BY_SIDO).sort((a, b) => {
+  const ai = SIDO_PRIORITY.indexOf(a);
+  const bi = SIDO_PRIORITY.indexOf(b);
+  if (ai === -1 && bi === -1) return a.localeCompare(b, 'ko');
+  if (ai === -1) return 1;
+  if (bi === -1) return -1;
+  return ai - bi;
 });
-sggPanel.querySelectorAll('input').forEach(cb => {
+const allSggKeys = [];
+sidoOrder.forEach(sido => {
+  Object.keys(SGG_BY_SIDO[sido]).sort().forEach(sgg => {
+    allSggKeys.push(`${sido} ${sgg}`);
+  });
+});
+state.activeSggs = new Set(allSggKeys);
+
+sidoOrder.forEach(sido => {
+  const sggMap = SGG_BY_SIDO[sido];
+  const sggNames = Object.keys(sggMap).sort();
+  const totTot = sggNames.reduce((s,n) => s + sggMap[n].tot, 0);
+  const totPriv = sggNames.reduce((s,n) => s + sggMap[n].priv, 0);
+  const block = document.createElement('div');
+  block.className = 'sido-block';
+  block.innerHTML = `
+    <div class="sido-head collapsed" data-sido="${sido}">
+      <span class="caret">▼</span>
+      <input type="checkbox" checked data-sido-check="${sido}" onclick="event.stopPropagation()">
+      <span>${sido}</span>
+      <span class="count">${totPriv.toLocaleString()}/${totTot.toLocaleString()}</span>
+    </div>
+    <div class="sido-body collapsed">
+      ${sggNames.map(sgg => {
+        const key = `${sido} ${sgg}`;
+        const c = sggMap[sgg];
+        return `<label class="filter-row"><input type="checkbox" checked data-sgg-key="${key}"><span style="flex:1;font-size:12px;">${sgg}</span><span class="count">${c.priv}/${c.tot}</span></label>`;
+      }).join('')}
+    </div>`;
+  sggPanel.appendChild(block);
+});
+
+// Toggle accordion + sido master checkbox
+sggPanel.querySelectorAll('.sido-head').forEach(head => {
+  head.addEventListener('click', () => {
+    head.classList.toggle('collapsed');
+    head.nextElementSibling.classList.toggle('collapsed');
+  });
+});
+sggPanel.querySelectorAll('input[data-sido-check]').forEach(cb => {
   cb.addEventListener('change', () => {
-    const s = cb.dataset.sgg;
-    if (cb.checked) state.activeSggs.add(s); else state.activeSggs.delete(s);
+    const sido = cb.dataset.sidoCheck;
+    const body = cb.closest('.sido-head').nextElementSibling;
+    body.querySelectorAll('input[data-sgg-key]').forEach(child => {
+      child.checked = cb.checked;
+      const k = child.dataset.sggKey;
+      if (cb.checked) state.activeSggs.add(k); else state.activeSggs.delete(k);
+    });
+    updateMapFilters(); renderList();
+  });
+});
+sggPanel.querySelectorAll('input[data-sgg-key]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const k = cb.dataset.sggKey;
+    if (cb.checked) state.activeSggs.add(k); else state.activeSggs.delete(k);
+    // sync parent sido checkbox
+    const head = cb.closest('.sido-body').previousElementSibling;
+    const all = cb.closest('.sido-body').querySelectorAll('input[data-sgg-key]');
+    const checked = Array.from(all).filter(x => x.checked).length;
+    head.querySelector('input[data-sido-check]').checked = checked === all.length;
+    head.querySelector('input[data-sido-check]').indeterminate = checked > 0 && checked < all.length;
     updateMapFilters(); renderList();
   });
 });
 document.getElementById('sgg-all').addEventListener('click', () => {
-  const allOn = sggKeys.every(s => state.activeSggs.has(s));
-  if (allOn) { state.activeSggs.clear(); sggPanel.querySelectorAll('input').forEach(cb => cb.checked = false); }
-  else { state.activeSggs = new Set(sggKeys); sggPanel.querySelectorAll('input').forEach(cb => cb.checked = true); }
+  state.activeSggs = new Set(allSggKeys);
+  sggPanel.querySelectorAll('input').forEach(cb => { cb.checked = true; cb.indeterminate = false; });
   updateMapFilters(); renderList();
 });
+document.getElementById('sgg-none').addEventListener('click', () => {
+  state.activeSggs.clear();
+  sggPanel.querySelectorAll('input').forEach(cb => { cb.checked = false; cb.indeterminate = false; });
+  updateMapFilters(); renderList();
+});
+// Safety: re-apply filter after map style is ready (in case activeSggs was empty when 'load' fired)
+function applyFiltersWhenReady() {
+  if (map.getLayer && map.getLayer('parcels-fill')) { updateMapFilters(); }
+  else { setTimeout(applyFiltersWhenReady, 200); }
+}
+applyFiltersWhenReady();
 
 // Park type
 const ptPanel = document.getElementById('park-type-filters');
@@ -1104,12 +1207,34 @@ sidebar.addEventListener('change', () => {
   if (window.innerWidth <= 768) toggleSidebar(false);
 });
 
-// PWA service worker
+// PWA service worker — with auto-reload on update
+const APP_VERSION = 'v5-sido-accordion-2026-06-04';
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+      // Force check for new SW every page load
+      reg.update().catch(()=>{});
+      // When a new SW takes control, force a one-time reload to pick up new HTML
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+    } catch(_) {}
   });
 }
+// One-time eviction for users stuck on stale cache (very old SW)
+try {
+  const seen = localStorage.getItem('app_version');
+  if (seen !== APP_VERSION) {
+    localStorage.setItem('app_version', APP_VERSION);
+    if ('caches' in window) {
+      caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))));
+    }
+  }
+} catch(_) {}
 
 // Excel / CSV download
 function buildRowsForExport() {

@@ -1,33 +1,34 @@
-// Service Worker for 핀파인더 PWA
-// Caches HTML shell + static JSON; PMTiles stay network (Range requests)
-const VERSION = 'v2-korea';
+// Service Worker for 핀파인더 PWA — network-first for HTML to avoid stale shell lock-in
+const VERSION = 'v8-sgg-filter-fix';
 const CACHE = `parkfinder-${VERSION}`;
-const SHELL = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/public/stats.json',
-  '/public/districts.json',
-  '/public/parcels-manifest.json',
-];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // Activate immediately; don't precache shell (precaching is what locked users into stale HTML)
+  self.skipWaiting();
 });
+
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+    await self.clients.claim();
+    // Force open tabs to reload so they pick up the new HTML immediately
+    const wins = await self.clients.matchAll({ type: 'window' });
+    for (const c of wins) { try { await c.navigate(c.url); } catch (_) {} }
+  })());
 });
+
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // Skip PMTiles & cross-origin (jsDelivr handles its own caching)
+  // PMTiles & cross-origin: bypass SW entirely
   if (url.hostname !== self.location.hostname) return;
   if (url.pathname.endsWith('.pmtiles')) return;
-  // Cache-first for shell, network-first for parcels-N.json (may update)
-  if (url.pathname.match(/parcels-\d+\.json$/)) {
+
+  const accept = e.request.headers.get('accept') || '';
+  const isHTML = url.pathname === '/' || url.pathname.endsWith('.html') || accept.includes('text/html');
+
+  if (isHTML) {
+    // network-first for HTML so users can never get stuck on old shell
     e.respondWith(
       fetch(e.request).then(r => {
         const copy = r.clone();
@@ -37,13 +38,18 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
+
+  // Everything else (JSON, manifest, icons): stale-while-revalidate
   e.respondWith(
-    caches.match(e.request).then(hit => hit || fetch(e.request).then(r => {
-      if (r.ok && r.status === 200) {
-        const copy = r.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy));
-      }
-      return r;
-    }))
+    caches.match(e.request).then(cached => {
+      const network = fetch(e.request).then(r => {
+        if (r.ok && r.status === 200) {
+          const copy = r.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy));
+        }
+        return r;
+      }).catch(() => cached);
+      return cached || network;
+    })
   );
 });
