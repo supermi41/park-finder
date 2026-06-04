@@ -538,7 +538,8 @@ function dateFilter() {
   ];
 }
 function combinedParcelFilter() {
-  return ['all', ownerFilter(), jimokFilterExpr(), sggFilter(), dateFilter()];
+  // v12 diagnostic: owner only
+  return ownerFilter();
 }
 function parcelColorExpr() {
   const e = ['match', ['get','owner_type']];
