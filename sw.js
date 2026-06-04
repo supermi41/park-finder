@@ -1,6 +1,6 @@
 // Service Worker for 핀파인더 PWA
 // Caches HTML shell + static JSON; PMTiles stay network (Range requests)
-const VERSION = 'v1';
+const VERSION = 'v2-korea';
 const CACHE = `parkfinder-${VERSION}`;
 const SHELL = [
   '/',

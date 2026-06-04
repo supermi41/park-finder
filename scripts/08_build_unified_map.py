@@ -16,6 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PUB = ROOT / "public"
 OUT_HTML = ROOT / "map.html"
+# Also write index.html for static hosts that default to index.html
+OUT_INDEX = ROOT / "index.html"
 
 PYEONG = 3.3058
 OWNER_ORDER = ["개인", "법인", "시 도유지", "군유지", "국유지",
@@ -61,7 +63,8 @@ def main():
         html = html.replace(k, v)
 
     OUT_HTML.write_text(html, encoding="utf-8")
-    print(f"✅ {OUT_HTML.name}  ({OUT_HTML.stat().st_size // 1024} KB)")
+    OUT_INDEX.write_text(html, encoding="utf-8")
+    print(f"✅ {OUT_HTML.name} / {OUT_INDEX.name}  ({OUT_HTML.stat().st_size // 1024} KB)")
 
 
 HTML = r"""<!doctype html>
@@ -71,6 +74,12 @@ HTML = r"""<!doctype html>
 <title>핀파인더 · 서울시 공원지정 사유지</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1d1d1f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="핀파인더">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",sans-serif;
@@ -176,11 +185,47 @@ HTML = r"""<!doctype html>
   .modal-head h2 { margin:0; font-size:16px; font-weight:700; text-transform:none; letter-spacing:0; }
   .modal-body { padding:22px; font-size:13px; line-height:1.65; color:#333; }
   .modal-close { border:none; background:transparent; font-size:20px; cursor:pointer; color:#888; }
+  .hamburger { display:none; background:transparent; border:none; padding:6px 8px; font-size:18px;
+               cursor:pointer; color:#1d1d1f; margin-right:8px; }
+  .sidebar-backdrop { display:none; position:fixed; inset:48px 0 0 0; background:rgba(0,0,0,0.4); z-index:999; }
+  .sidebar-backdrop.open { display:block; }
+  /* Mobile (≤768px) */
+  @media (max-width: 768px) {
+    .hamburger { display:inline-block; }
+    .brand h1 { font-size:14px; }
+    .brand .sub { display:none; }
+    header { padding:8px 12px; }
+    .tab { padding:5px 10px; font-size:12px; }
+    .sidebar {
+      position:fixed; left:-280px; top:48px; bottom:0; width:260px; z-index:1000;
+      transition:left 0.22s ease; box-shadow:2px 0 14px rgba(0,0,0,0.15);
+    }
+    .sidebar.open { left:0; }
+    .main-wrap { width:100%; }
+    .right-panel { position:fixed; inset:48px 0 0 0; width:100%; z-index:998; }
+    .right-panel.open { display:flex; }
+    .right-panel.expanded { inset:48px 0 0 0; }
+    .map-wrap.hidden { display:none; }
+    .pcard .head { font-size:14px; }
+    .pcard .meta { font-size:12.5px; }
+    .filter-row { padding:8px 4px; font-size:14px; }
+    .filter-row input[type=checkbox] { transform:scale(1.2); }
+    .icon-btn { padding:8px 12px; font-size:13px; }
+    .toolbar input { padding:9px 10px; font-size:14px; }
+    .modal-box { width:96vw; max-height:90vh; border-radius:10px; }
+    .modal-head { padding:14px 16px; }
+    .modal-body { padding:16px; font-size:13px; }
+    /* Stat card lighter on small screens */
+    .stat-card .big { font-size:24px; }
+    /* Map controls (top-right) bigger touch */
+    .maplibregl-ctrl-group button { width:36px; height:36px; }
+  }
 </style>
 </head>
 <body>
 <header>
   <div class="brand">
+    <button type="button" class="hamburger" id="hamburger-btn" aria-label="필터 메뉴">☰</button>
     <span style="font-size:18px;">📍</span>
     <h1>핀파인더 · 서울시</h1>
     <span class="sub">공원지정 필지 · 출처 V-World</span>
@@ -230,12 +275,17 @@ HTML = r"""<!doctype html>
   </div>
 </div>
 
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 <div class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="stat-card">
       <div class="big">__PCT__%</div>
       <div class="label">서울 __TOTAL__건 중 사유지 __PRIVATE__건</div>
     </div>
+    <button type="button" id="preset-litigation" style="width:100%;padding:10px;margin-bottom:14px;background:linear-gradient(135deg,#0071e3,#0058b3);color:#fff;border:none;border-radius:10px;font-size:13px;cursor:pointer;font-weight:700;box-shadow:0 2px 8px rgba(0,113,227,0.25);">
+      🎯 수용청구 후보 (원클릭)
+      <div style="font-size:10.5px;font-weight:500;opacity:0.9;margin-top:3px;">사유지 · 자연/녹지·공원 · 대 제외</div>
+    </button>
     <h2>소유 구분
       <span class="toggle-all" id="toggle-all" style="margin-left:auto;">전체</span>
       <span class="toggle-all" id="only-private">사유지만</span></h2>
@@ -244,11 +294,41 @@ HTML = r"""<!doctype html>
     <div id="sgg-filters" style="max-height:200px;overflow-y:auto;"></div>
     <h2>공원 시설 유형</h2>
     <div id="park-type-filters"></div>
+
+    <h2>
+      결정일 / 일몰
+      <span class="toggle-all" id="sunset-reset" style="margin-left:auto;">초기화</span>
+    </h2>
+    <div style="padding:4px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-bottom:4px;">
+        <span>결정 후</span>
+        <span><b id="years-label" style="color:#e63946;">0년+</b></span>
+      </div>
+      <input type="range" id="years-slider" min="0" max="30" step="1" value="0" style="width:100%;">
+      <div style="font-size:10.5px;color:#888;margin-top:6px;display:flex;justify-content:space-between;">
+        <span>전체</span>
+        <span>10년+</span>
+        <span style="color:#e63946;font-weight:600;">20년+ (일몰)</span>
+        <span>30년+</span>
+      </div>
+      <label class="filter-row" style="margin-top:8px;">
+        <input type="checkbox" id="include-unknown-date" checked>
+        <span style="font-size:12px;">결정일 미상도 포함</span>
+      </label>
+    </div>
     <h2>지목 그룹
       <span class="toggle-all" id="jimok-all" style="margin-left:auto;">전체</span>
       <span class="toggle-all" id="jimok-natural">자연만</span></h2>
     <div id="jimok-filters"></div>
+    <h2>배경 지도</h2>
+    <div id="basemap-picker"></div>
+
     <h2>오버레이</h2>
+    <label class="filter-row">
+      <input type="checkbox" id="show-districts" checked>
+      <span class="chip" style="background:transparent;border:1.5px solid #1d3557;"></span>
+      <span>자치구 경계</span>
+    </label>
     <label class="filter-row">
       <input type="checkbox" id="show-parks" checked>
       <span class="chip" style="background:#a8dadc;"></span>
@@ -336,6 +416,7 @@ const state = {
   activeSggs: new Set(),
   showParks: true, showParcels: true,
   expanded: false, sortKey: null, sortDir: 1, displayedRows: PAGE_SIZE,
+  minYearsSince: 0, includeUnknownDate: true,
 };
 function activeJimokSet() {
   const s = new Set();
@@ -351,22 +432,55 @@ const collapsedGroups = new Set();
 // PMTiles
 const protocol = new pmtiles.Protocol();
 maplibregl.addProtocol('pmtiles', protocol.tile);
-const PARCELS_URL = window.PARCELS_PMTILES_URL || 'tiles/parcels.pmtiles';
-const PARKS_URL = window.PARKS_PMTILES_URL || 'tiles/parks.pmtiles';
+// PMTiles host: localhost → local files; prod → GitHub Pages (Range supported, no 50MB cap).
+const IS_LOCAL = ['localhost','127.0.0.1','0.0.0.0'].includes(location.hostname);
+const PMTILES_BASE = IS_LOCAL ? 'tiles' : 'https://supermi41.github.io/park-finder/tiles';
+const PARCELS_URL = window.PARCELS_PMTILES_URL || `${PMTILES_BASE}/parcels.pmtiles`;
+const PARKS_URL = window.PARKS_PMTILES_URL || `${PMTILES_BASE}/parks.pmtiles`;
+
+const BASEMAPS = {
+  light:    { name:'라이트',  tiles:['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'], attr:'© CartoDB' },
+  osm:      { name:'OSM',    tiles:['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'], attr:'© OSM' },
+  dark:     { name:'다크',    tiles:['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], attr:'© CartoDB' },
+  satellite:{ name:'위성',    tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], attr:'© Esri' },
+  voyager:  { name:'보이저',  tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'], attr:'© CartoDB' },
+};
+let currentBasemap = 'light';
 
 const map = new maplibregl.Map({
   container: 'map',
   style: {
     version: 8,
     sources: {
-      osm: { type:'raster', tiles:['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'],
-             tileSize:256, attribution:'© OSM © CartoDB' },
+      osm: { type:'raster', tiles: BASEMAPS.light.tiles, tileSize:256, attribution: BASEMAPS.light.attr },
       parks: { type:'vector', url:'pmtiles://' + PARKS_URL },
       parcels: { type:'vector', url:'pmtiles://' + PARCELS_URL }
     },
     layers: [{ id:'base', type:'raster', source:'osm' }]
   },
   center:[126.98, 37.55], zoom:11, maxZoom:18, minZoom:8
+});
+
+function switchBasemap(key) {
+  if (key === currentBasemap) return;
+  const cfg = BASEMAPS[key];
+  const src = map.getSource('osm');
+  if (src && src.setTiles) {
+    src.setTiles(cfg.tiles);
+    currentBasemap = key;
+  }
+}
+
+const basemapPicker = document.getElementById('basemap-picker');
+Object.entries(BASEMAPS).forEach(([key, cfg]) => {
+  const div = document.createElement('label');
+  div.className = 'filter-row';
+  div.innerHTML = `
+    <input type="radio" name="basemap" value="${key}" ${key===currentBasemap?'checked':''}>
+    <span>${cfg.name}</span>
+  `;
+  div.querySelector('input').addEventListener('change', () => switchBasemap(key));
+  basemapPicker.appendChild(div);
 });
 map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
@@ -386,8 +500,26 @@ function parkCatFilter() {
   const a = Array.from(state.activeParkTypes);
   return a.length === 0 ? ['==', ['get','park_cat'], '__none__'] : ['in', ['get','park_cat'], ['literal', a]];
 }
+function dateFilter() {
+  if (state.minYearsSince === 0) return ['==', 0, 0]; // always true
+  const currentYear = (new Date()).getFullYear();
+  const cutoff = currentYear - state.minYearsSince;
+  if (state.includeUnknownDate) {
+    return ['any',
+      ['==', ['get', 'park_decision_year'], 0],
+      ['all',
+        ['>', ['get', 'park_decision_year'], 0],
+        ['<=', ['get', 'park_decision_year'], cutoff]
+      ]
+    ];
+  }
+  return ['all',
+    ['>', ['get', 'park_decision_year'], 0],
+    ['<=', ['get', 'park_decision_year'], cutoff]
+  ];
+}
 function combinedParcelFilter() {
-  return ['all', ownerFilter(), jimokFilterExpr(), sggFilter()];
+  return ['all', ownerFilter(), jimokFilterExpr(), sggFilter(), dateFilter()];
 }
 function parcelColorExpr() {
   const e = ['match', ['get','owner_type']];
@@ -400,7 +532,15 @@ function parkColorExpr() {
   e.push('#cccccc'); return e;
 }
 
-map.on('load', () => {
+map.on('load', async () => {
+  // Districts (자치구 경계) — small GeoJSON, load directly
+  try {
+    const d = await (await fetch('public/districts.json')).json();
+    map.addSource('districts', { type:'geojson', data:d });
+    map.addLayer({ id:'districts-line', source:'districts', type:'line',
+      paint:{ 'line-color':'#1d3557', 'line-width':1.2, 'line-dasharray':[3,2] } });
+  } catch(e) { console.warn('districts load failed:', e); }
+
   map.addLayer({ id:'parks-fill', source:'parks', 'source-layer':'parks', type:'fill',
     paint:{ 'fill-color': parkColorExpr(), 'fill-opacity':0.25, 'fill-outline-color':'#2a9d8f' },
     filter: parkCatFilter() });
@@ -438,9 +578,20 @@ function buildPopup(p) {
   const pricePerM = parseFloat(p.price_per_m2)||0;
   const pricePerPy = pricePerM*PYEONG;
   const addr = buildCleanAddr(p).replace(/'/g,'');
+  const py = parseInt(p.park_decision_year||0, 10);
+  const now = (new Date()).getFullYear();
+  let sunsetLine = '';
+  if (py > 0) {
+    const elapsed = now - py;
+    const sunsetIn = 20 - elapsed;
+    if (sunsetIn <= 0) sunsetLine = `<span style="color:#e63946;font-weight:600;">⚠️ 일몰 대상 (${py}년 결정, ${elapsed}년 경과)</span><br>`;
+    else if (sunsetIn <= 5) sunsetLine = `<span style="color:#f4a261;font-weight:600;">🟡 일몰 ${sunsetIn}년 남음 (${py}년 결정)</span><br>`;
+    else sunsetLine = `<small style="color:#888;">${py}년 결정 · 일몰까지 ${sunsetIn}년</small><br>`;
+  }
   return `
     <b>${p.sgg_nm || ''} ${p.emd_nm || ''} ${p.jibun || ''}</b><br>
     ${p.matched_park_name ? `📍 <b>${p.matched_park_name}</b> <small style="color:#888;">(${p.matched_park_type||''} · 겹침 ${p.match_overlap_pct||'?'}%)</small><br>` : ''}
+    ${sunsetLine}
     소유: <b style="color:${COLORS[p.owner_type] || '#000'}">${p.owner_type || '?'}</b>
       <small>(${p.owner_subtype || ''})</small><br>
     지목: ${p.jimok || '?'}<br>
@@ -484,11 +635,24 @@ async function ensureParcelsLoaded() {
   listLoading.style.display = 'block';
   compactEl.style.opacity = '0.5';
   try {
-    const r = await fetch('public/parcels.json');
-    const j = await r.json();
-    PARCELS_LIST = j.features.map(f => f.properties);
+    // Try manifest-based chunked load first; fall back to single file
+    let chunks = null;
+    try {
+      const m = await fetch('public/parcels-manifest.json');
+      if (m.ok) chunks = (await m.json()).chunks;
+    } catch(_) {}
+    if (chunks && chunks.length) {
+      const results = await Promise.all(chunks.map(name =>
+        fetch('public/' + name).then(r => r.json())
+      ));
+      PARCELS_LIST = [];
+      for (const r of results) PARCELS_LIST.push(...r.features.map(f => f.properties));
+    } else {
+      const j = await (await fetch('public/parcels.json')).json();
+      PARCELS_LIST = j.features.map(f => f.properties);
+    }
   } catch(e) {
-    alert('parcels.json 로드 실패: ' + e.message);
+    alert('parcels 로드 실패: ' + e.message);
     PARCELS_LIST = [];
   }
   listLoading.style.display = 'none';
@@ -517,9 +681,16 @@ function renderList() {
   }
   const q = searchEl.value.trim().toLowerCase();
   const jset = activeJimokSet();
-  let rows = PARCELS_LIST.filter(p =>
-    state.activeOwners.has(p.owner_type) && jset.has(p.jimok) && state.activeSggs.has(p.sgg_nm)
-  );
+  const cutoffYear = (new Date()).getFullYear() - state.minYearsSince;
+  let rows = PARCELS_LIST.filter(p => {
+    if (!(state.activeOwners.has(p.owner_type) && jset.has(p.jimok) && state.activeSggs.has(p.sgg_nm))) return false;
+    if (state.minYearsSince > 0) {
+      const py = p.park_decision_year || 0;
+      if (py === 0) return state.includeUnknownDate;
+      if (py > cutoffYear) return false;
+    }
+    return true;
+  });
   if (q) rows = rows.filter(p =>
     (p.emd_nm||'').toLowerCase().includes(q) ||
     (p.jibun||'').toLowerCase().includes(q) ||
@@ -717,6 +888,21 @@ document.getElementById('only-private').addEventListener('click', () => {
   updateMapFilters(); renderList();
 });
 
+// 수용청구 후보 프리셋: 사유지 + 자연/녹지·공원/잡종 (대·도로·공공 제외)
+document.getElementById('preset-litigation').addEventListener('click', () => {
+  // Owners → 사유지만
+  state.activeOwners = new Set(["개인","법인"]);
+  ownerPanel.querySelectorAll('input').forEach(cb => cb.checked = state.activeOwners.has(cb.dataset.owner));
+  // Jimok → 자연/녹지 + 공원/잡종만
+  state.activeJimokGroups = new Set(["자연/녹지","공원/잡종"]);
+  jimokPanel.querySelectorAll('input').forEach(cb => cb.checked = state.activeJimokGroups.has(cb.dataset.jimokGroup));
+  // Park type → 공원 + 녹지 + 유원지 (광장 제외 — 도로 위)
+  state.activeParkTypes = new Set(["공원","녹지","유원지"]);
+  ptPanel.querySelectorAll('input').forEach(cb => cb.checked = state.activeParkTypes.has(cb.dataset.cat));
+  updateMapFilters(); renderList();
+  alert('🎯 수용청구 후보 필터 적용\\n\\n• 사유지 (개인+법인)\\n• 지목: 자연/녹지·공원/잡종 (대·도로 제외)\\n• 공원·녹지·유원지 (광장 제외)\\n\\n[목록] 탭 → 면적·공시지가 정렬해서 큰 케이스부터 검토.\\n등기부 점프로 소유자 확인.');
+});
+
 // SGG
 const sggPanel = document.getElementById('sgg-filters');
 const sggKeys = Object.keys(STATS.sgg_counts).sort();
@@ -792,6 +978,40 @@ document.getElementById('jimok-natural').addEventListener('click', () => {
 });
 
 // Overlay toggles
+// 일몰 슬라이더 + 미상 포함 토글
+const yearsSlider = document.getElementById('years-slider');
+const yearsLabel = document.getElementById('years-label');
+yearsSlider.addEventListener('input', e => {
+  state.minYearsSince = parseInt(e.target.value, 10) || 0;
+  if (state.minYearsSince === 0) {
+    yearsLabel.textContent = '0년+'; yearsLabel.style.color = '#666';
+  } else if (state.minYearsSince >= 20) {
+    yearsLabel.textContent = state.minYearsSince + '년+ ⚠️일몰';
+    yearsLabel.style.color = '#e63946';
+  } else {
+    yearsLabel.textContent = state.minYearsSince + '년+';
+    yearsLabel.style.color = '#e63946';
+  }
+  updateMapFilters(); renderList();
+});
+document.getElementById('include-unknown-date').addEventListener('change', e => {
+  state.includeUnknownDate = e.target.checked;
+  updateMapFilters(); renderList();
+});
+document.getElementById('sunset-reset').addEventListener('click', () => {
+  state.minYearsSince = 0;
+  state.includeUnknownDate = true;
+  yearsSlider.value = 0;
+  yearsLabel.textContent = '0년+'; yearsLabel.style.color = '#666';
+  document.getElementById('include-unknown-date').checked = true;
+  updateMapFilters(); renderList();
+});
+
+document.getElementById('show-districts').addEventListener('change', e => {
+  if (map.getLayer('districts-line')) {
+    map.setLayoutProperty('districts-line', 'visibility', e.target.checked ? 'visible' : 'none');
+  }
+});
 document.getElementById('show-parks').addEventListener('change', e => {
   state.showParks = e.target.checked;
   ['parks-fill','parks-outline'].forEach(id => {
@@ -868,6 +1088,28 @@ document.getElementById('close-howto').addEventListener('click', () => {
 document.getElementById('howto-overlay').addEventListener('click', (e) => {
   if (e.target.id === 'howto-overlay') document.getElementById('howto-overlay').style.display = 'none';
 });
+
+// Mobile hamburger toggle
+const sidebar = document.getElementById('sidebar');
+const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+function toggleSidebar(open) {
+  const willOpen = open ?? !sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', willOpen);
+  sidebarBackdrop.classList.toggle('open', willOpen);
+}
+document.getElementById('hamburger-btn').addEventListener('click', () => toggleSidebar());
+sidebarBackdrop.addEventListener('click', () => toggleSidebar(false));
+// auto-close sidebar after filter change on mobile
+sidebar.addEventListener('change', () => {
+  if (window.innerWidth <= 768) toggleSidebar(false);
+});
+
+// PWA service worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
 
 // Excel / CSV download
 function buildRowsForExport() {
