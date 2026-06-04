@@ -216,26 +216,47 @@ def main():
         ckpt.write_text(json.dumps(
             {"type":"FeatureCollection","features":district_matched}, ensure_ascii=False))
 
-    # Aggregate ALL checkpoints (target + untouched)
-    log("\n🔀 Aggregating ALL checkpoints...")
-    all_by_pnu = {}
-    for ckpt in sorted(DISTRICTS_DIR.glob("*.geojson")):
+    # Smart merge: keep existing enriched parcels from non-target sidos,
+    # replace target-sido parcels with freshly crawled checkpoints (no owner yet).
+    log("\n🔀 Merging: keep existing non-target + replace target sidos from checkpoints")
+    out_path = OUT / "korea_park_parcels_all.geojson"
+    existing = []
+    if out_path.exists():
+        try:
+            existing = json.loads(out_path.read_text())["features"]
+        except Exception as e:
+            log(f"   ⚠️ failed to load existing: {e}")
+    log(f"   existing: {len(existing)} parcels")
+
+    # Keep only non-target sido parcels from existing (they retain owner_type)
+    kept = []
+    for f in existing:
+        pnu = f["properties"].get("pnu", "")
+        # sig_cd is first 5 of pnu; sido prefix is first 2
+        if pnu[:2] not in target_prefixes:
+            kept.append(f)
+    log(f"   kept (non-target): {len(kept)}")
+
+    # Add fresh target-sido parcels from checkpoints
+    fresh = []
+    fresh_by_pnu = {}
+    for nm, cd, _ in target_districts:
+        ckpt = DISTRICTS_DIR / f"{nm}_{cd}.geojson"
+        if not ckpt.exists(): continue
         try:
             for f in json.loads(ckpt.read_text())["features"]:
                 pnu = f["properties"].get("pnu")
-                if pnu: all_by_pnu[pnu] = f
+                if pnu and pnu not in fresh_by_pnu:
+                    fresh_by_pnu[pnu] = f
+                    fresh.append(f)
         except Exception as e:
             log(f"   ⚠️ {ckpt.name}: {e}")
+    log(f"   fresh (target): {len(fresh)} from {len(target_districts)} districts")
 
-    matched_list = list(all_by_pnu.values())
-    log(f"   {len(matched_list)} unique parcels across {len(list(DISTRICTS_DIR.glob('*.geojson')))} checkpoints")
-
-    # Ownership query — only for parcels that don't have owner_type yet
-    need_owner = [f for f in matched_list if not f["properties"].get("owner_type")]
-    log(f"\n4️⃣  Owner query: {len(need_owner)} parcels missing ownership")
-    enriched = [f for f in matched_list if f["properties"].get("owner_type")]
+    # Owner query only for fresh parcels (they have no owner_type yet)
+    log(f"\n4️⃣  Owner query: {len(fresh)} target-sido parcels")
     t0 = time.time()
-    for i, f in enumerate(need_owner, 1):
+    for i, f in enumerate(fresh, 1):
         pnu = f["properties"]["pnu"]
         fields = fetch_possession(pnu)
         if fields:
@@ -244,17 +265,20 @@ def main():
             f["properties"]["owner_subtype"] = row.get("nationInsttSeCodeNm", "")
             f["properties"]["area_m2"] = row.get("lndpclAr", "")
             f["properties"]["price_per_m2"] = row.get("pblntfPclnd", "")
-            enriched.append(f)
         if i % 100 == 0:
             elapsed = time.time() - t0
             rate = i/elapsed if elapsed>0 else 0
-            log(f"   {i}/{len(need_owner)}  rate={rate:.1f}/s")
+            eta = (len(fresh) - i)/rate if rate>0 else 0
+            log(f"   {i}/{len(fresh)}  rate={rate:.1f}/s  eta={eta/60:.1f}min")
         time.sleep(0.03)
-    log(f"✅ enriched total: {len(enriched)}")
+    enriched_fresh = [f for f in fresh if f["properties"].get("owner_type")]
+    log(f"✅ enriched fresh: {len(enriched_fresh)} / {len(fresh)}")
 
-    out_path = OUT / "korea_park_parcels_all.geojson"
+    merged = kept + enriched_fresh
+    log(f"\n📦 merged total: {len(merged)} = {len(kept)} kept + {len(enriched_fresh)} fresh")
+
     out_path.write_text(json.dumps(
-        {"type":"FeatureCollection","features":enriched}, ensure_ascii=False))
+        {"type":"FeatureCollection","features":merged}, ensure_ascii=False))
     log(f"💾 {out_path.name} ({out_path.stat().st_size//1024//1024} MB)")
 
 
