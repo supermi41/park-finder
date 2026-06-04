@@ -438,21 +438,13 @@ function jimokFilterExpr() {
 function sggFilter() {
   const active = Array.from(state.activeSggs);
   if (active.length === 0) return ['==', ['get','sgg_nm'], '__none__'];
-  // Group active composite keys by sido: avoid concat in filter (some MapLibre versions buggy)
-  const bySido = {};
+  // Simpler: just sgg_nm in list. (collision-acceptable for v11 diagnostic)
+  const sggNames = new Set();
   for (const k of active) {
     const idx = k.indexOf(' ');
-    if (idx < 0) continue;
-    const sido = k.substring(0, idx);
-    const sgg = k.substring(idx + 1);
-    (bySido[sido] = bySido[sido] || []).push(sgg);
+    sggNames.add(idx >= 0 ? k.substring(idx + 1) : k);
   }
-  const clauses = Object.entries(bySido).map(([sido, sggs]) =>
-    ['all', ['==', ['get','sido_nm'], sido], ['in', ['get','sgg_nm'], ['literal', sggs]]]
-  );
-  if (clauses.length === 0) return ['==', ['get','sgg_nm'], '__none__'];
-  if (clauses.length === 1) return clauses[0];
-  return ['any', ...clauses];
+  return ['in', ['get','sgg_nm'], ['literal', Array.from(sggNames)]];
 }
 function parkCatFilter() {
   const a = Array.from(state.activeParkTypes);
@@ -504,10 +496,9 @@ map.on('load', async () => {
     filter: parkCatFilter() });
   map.addLayer({ id:'parks-outline', source:'parks', 'source-layer':'parks', type:'line',
     paint:{ 'line-color':'#2a9d8f', 'line-width':0.5 }, filter: parkCatFilter() });
-  // v10: parcels-fill with color-by-owner, NO sgg/jimok filter (only 'has pnu')
   map.addLayer({ id:'parcels-fill', source:'parcels', 'source-layer':'parcels', type:'fill',
     paint:{ 'fill-color': parcelColorExpr(), 'fill-opacity':0.55, 'fill-outline-color':'#222' },
-    filter: ['has', 'pnu'] });
+    filter: combinedParcelFilter() });
 
   map.on('click', 'parcels-fill', (e) => {
     if (!e.features || !e.features[0]) return;
