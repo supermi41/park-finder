@@ -1,5 +1,5 @@
 // Service Worker for 핀파인더 PWA — network-first for HTML to avoid stale shell lock-in
-const VERSION = 'v14-owner-jimok-sgg';
+const VERSION = 'v15-all-filters';
 const CACHE = `parkfinder-${VERSION}`;
 
 self.addEventListener('install', e => {
