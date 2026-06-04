@@ -469,7 +469,9 @@ function dateFilter() {
   ];
 }
 function combinedParcelFilter() {
-  return ['all', ownerFilter(), jimokFilterExpr(), sggFilter(), dateFilter()];
+  const parts = [ownerFilter(), jimokFilterExpr(), sggFilter()];
+  if (state.minYearsSince > 0) parts.push(dateFilter());
+  return ['all', ...parts];
 }
 function parcelColorExpr() {
   const e = ['match', ['get','owner_type']];
