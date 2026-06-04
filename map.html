@@ -504,9 +504,14 @@ map.on('load', async () => {
     filter: parkCatFilter() });
   map.addLayer({ id:'parks-outline', source:'parks', 'source-layer':'parks', type:'line',
     paint:{ 'line-color':'#2a9d8f', 'line-width':0.5 }, filter: parkCatFilter() });
+  // DEBUG layer: render every parcel solid red, no filter — confirms PMTiles source
+  map.addLayer({ id:'parcels-debug', source:'parcels', 'source-layer':'parcels', type:'fill',
+    paint:{ 'fill-color':'#ff00ff', 'fill-opacity':0.6 } });
+  console.log('parcels-debug layer added');
   map.addLayer({ id:'parcels-fill', source:'parcels', 'source-layer':'parcels', type:'fill',
     paint:{ 'fill-color': parcelColorExpr(), 'fill-opacity':0.55, 'fill-outline-color':'#222' },
     filter: combinedParcelFilter() });
+  console.log('parcels-fill layer added, filter:', JSON.stringify(combinedParcelFilter()).slice(0,200));
 
   map.on('click', 'parcels-fill', (e) => {
     if (!e.features || !e.features[0]) return;
