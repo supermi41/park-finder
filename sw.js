@@ -1,5 +1,5 @@
 // Service Worker for 핀파인더 PWA — network-first for HTML to avoid stale shell lock-in
-const VERSION = 'v16-date-conditional';
+const VERSION = 'v17-sgg-full';
 const CACHE = `parkfinder-${VERSION}`;
 
 self.addEventListener('install', e => {

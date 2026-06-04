@@ -506,14 +506,9 @@ function jimokFilterExpr() {
 }
 function sggFilter() {
   const active = Array.from(state.activeSggs);
-  if (active.length === 0) return ['==', ['get','sgg_nm'], '__none__'];
-  // Simpler: just sgg_nm in list. (collision-acceptable for v11 diagnostic)
-  const sggNames = new Set();
-  for (const k of active) {
-    const idx = k.indexOf(' ');
-    sggNames.add(idx >= 0 ? k.substring(idx + 1) : k);
-  }
-  return ['in', ['get','sgg_nm'], ['literal', Array.from(sggNames)]];
+  if (active.length === 0) return ['==', ['get','sgg_full'], '__none__'];
+  // PMTiles features carry precomputed sgg_full = "{sido} {sgg}" → collision-free
+  return ['in', ['get','sgg_full'], ['literal', active]];
 }
 function parkCatFilter() {
   const a = Array.from(state.activeParkTypes);
