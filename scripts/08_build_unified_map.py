@@ -538,8 +538,8 @@ function dateFilter() {
   ];
 }
 function combinedParcelFilter() {
-  // v13 diagnostic: owner + jimok
-  return ['all', ownerFilter(), jimokFilterExpr()];
+  // v14 diagnostic: owner + jimok + sgg (simplified)
+  return ['all', ownerFilter(), jimokFilterExpr(), sggFilter()];
 }
 function parcelColorExpr() {
   const e = ['match', ['get','owner_type']];
