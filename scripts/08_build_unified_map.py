@@ -84,9 +84,10 @@ HTML = r"""<!doctype html>
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",sans-serif;
          color:#1d1d1f; background:#f6f6f8; overflow:hidden; }
+  :root { --header-h: 48px; }
   header { display:flex; align-items:center; justify-content:space-between;
            padding:10px 18px; background:#fff; border-bottom:1px solid #e5e5ea;
-           height:48px; flex-shrink:0; }
+           height:var(--header-h); flex-shrink:0; flex-wrap:wrap; gap:8px; }
   header .brand { display:flex; gap:10px; align-items:center; }
   header h1 { margin:0; font-size:15px; font-weight:700; }
   header .sub { font-size:11px; color:#86868b; margin-left:8px; }
@@ -94,7 +95,7 @@ HTML = r"""<!doctype html>
   .tab { padding:6px 14px; border:none; background:#f0f0f3; border-radius:8px;
          font-size:13px; cursor:pointer; color:#666; font-weight:500; }
   .tab.active { background:#1d1d1f; color:#fff; }
-  .layout { display:flex; height:calc(100vh - 48px); width:100vw; }
+  .layout { display:flex; height:calc(100vh - var(--header-h)); width:100vw; }
   .sidebar { width: 250px; background:#fff; border-right:1px solid #e5e5ea;
              overflow-y:auto; padding:14px; flex-shrink:0; }
   .main-wrap { flex:1; display:flex; min-width:0; }
@@ -197,24 +198,29 @@ HTML = r"""<!doctype html>
   .modal-close { border:none; background:transparent; font-size:20px; cursor:pointer; color:#888; }
   .hamburger { display:none; background:transparent; border:none; padding:6px 8px; font-size:18px;
                cursor:pointer; color:#1d1d1f; margin-right:8px; }
-  .sidebar-backdrop { display:none; position:fixed; inset:48px 0 0 0; background:rgba(0,0,0,0.4); z-index:999; }
+  .sidebar-backdrop { display:none; position:fixed; inset:var(--header-h) 0 0 0; background:rgba(0,0,0,0.4); z-index:999; }
   .sidebar-backdrop.open { display:block; }
   /* Mobile (≤768px) */
   @media (max-width: 768px) {
+    :root { --header-h: 92px; }
     .hamburger { display:inline-block; }
     .brand h1 { font-size:14px; }
     .brand .sub { display:none; }
-    header { padding:8px 12px; }
+    header { padding:6px 12px; row-gap:4px; }
+    /* 검색창을 두 번째 줄로 밀어 100% 너비 확보 */
+    .addr-search { order: 99; flex-basis: 100%; max-width: 100%; margin: 0 !important; }
+    .addr-search input { padding: 9px 12px; font-size: 14px; }
+    .addr-search #addr-results { top: 42px; }
     .tab { padding:5px 10px; font-size:12px; }
     .sidebar {
-      position:fixed; left:-280px; top:48px; bottom:0; width:260px; z-index:1000;
+      position:fixed; left:-280px; top:var(--header-h); bottom:0; width:260px; z-index:1000;
       transition:left 0.22s ease; box-shadow:2px 0 14px rgba(0,0,0,0.15);
     }
     .sidebar.open { left:0; }
     .main-wrap { width:100%; }
-    .right-panel { position:fixed; inset:48px 0 0 0; width:100%; z-index:998; }
+    .right-panel { position:fixed; inset:var(--header-h) 0 0 0; width:100%; z-index:998; }
     .right-panel.open { display:flex; }
-    .right-panel.expanded { inset:48px 0 0 0; }
+    .right-panel.expanded { inset:var(--header-h) 0 0 0; }
     .map-wrap.hidden { display:none; }
     .pcard .head { font-size:14px; }
     .pcard .meta { font-size:12.5px; }
@@ -239,6 +245,12 @@ HTML = r"""<!doctype html>
     <span style="font-size:18px;">📍</span>
     <h1>핀파인더 · 전국</h1>
     <span class="sub">공원지정 필지 · 출처 V-World</span>
+  </div>
+  <div class="addr-search" style="position:relative;flex:1;max-width:420px;margin:0 12px;">
+    <input id="addr-input" type="search" autocomplete="off"
+      placeholder="🔍 주소·도로명·동 검색 (예: 강남대로, 역삼동)"
+      style="width:100%;padding:7px 12px;font-size:13px;border:1px solid #d0d0d5;border-radius:8px;outline:none;background:#f9f9fb;">
+    <div id="addr-results" style="display:none;position:absolute;top:38px;left:0;right:0;background:#fff;border:1px solid #e5e5ea;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.10);max-height:60vh;overflow-y:auto;z-index:200;"></div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
     <button type="button" id="open-howto" class="tab" style="background:#f0fbf2;color:#2f8a3a;font-weight:600;">💡 사용법</button>
@@ -450,21 +462,26 @@ const PMTILES_BASE = IS_LOCAL ? 'tiles' : 'https://supermi41.github.io/park-find
 const PARCELS_URL = window.PARCELS_PMTILES_URL || `${PMTILES_BASE}/parcels.pmtiles`;
 const PARKS_URL = window.PARKS_PMTILES_URL || `${PMTILES_BASE}/parks.pmtiles`;
 
+// VWorld 공공 API 키 (도메인 제한). 카토 basemap이 워터마크 붙여서 vworld로 전환.
+const VWORLD_KEY = '0850E39E-6C76-3271-8205-1E5532EE03F7';
 const BASEMAPS = {
-  light:    { name:'라이트',  tiles:['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'], attr:'© CartoDB' },
+  vwhite:   { name:'라이트',  tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/white/{z}/{y}/{x}.png`], attr:'© V-World' },
+  vworld:   { name:'국토부',  tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Base/{z}/{y}/{x}.png`], attr:'© V-World' },
+  vgray:    { name:'그레이',  tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/gray/{z}/{y}/{x}.png`], attr:'© V-World' },
+  vhybrid:  { name:'위성+지명',tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Hybrid/{z}/{y}/{x}.png`], attr:'© V-World' },
+  vsat:     { name:'위성',    tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`], attr:'© V-World' },
+  vmidnight:{ name:'다크',    tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/midnight/{z}/{y}/{x}.png`], attr:'© V-World' },
   osm:      { name:'OSM',    tiles:['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'], attr:'© OSM' },
-  dark:     { name:'다크',    tiles:['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], attr:'© CartoDB' },
-  satellite:{ name:'위성',    tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], attr:'© Esri' },
-  voyager:  { name:'보이저',  tiles:['https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'], attr:'© CartoDB' },
+  esri_sat: { name:'ESRI위성',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], attr:'© Esri' },
 };
-let currentBasemap = 'light';
+let currentBasemap = 'vwhite';
 
 const map = new maplibregl.Map({
   container: 'map',
   style: {
     version: 8,
     sources: {
-      osm: { type:'raster', tiles: BASEMAPS.light.tiles, tileSize:256, attribution: BASEMAPS.light.attr },
+      osm: { type:'raster', tiles: BASEMAPS.vwhite.tiles, tileSize:256, attribution: BASEMAPS.vwhite.attr },
       parks: { type:'vector', url:'pmtiles://' + PARKS_URL },
       parcels: { type:'vector', url:'pmtiles://' + PARCELS_URL }
     },
@@ -495,6 +512,129 @@ Object.entries(BASEMAPS).forEach(([key, cfg]) => {
   basemapPicker.appendChild(div);
 });
 map.addControl(new maplibregl.NavigationControl(), 'top-left');
+
+// ==================== 주소 검색 (VWorld JSONP) ====================
+// CORS 우회를 위해 JSONP 사용. 도로명 검색 + 지명(동/시) 검색을 병렬로 조회.
+let addrMarker = null;
+let addrDebounceTimer = null;
+let addrJsonpSeq = 0;
+const addrInput = document.getElementById('addr-input');
+const addrResults = document.getElementById('addr-results');
+
+function jsonp(url, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const cbName = '__vw_cb_' + (++addrJsonpSeq) + '_' + Date.now();
+    const script = document.createElement('script');
+    let done = false;
+    const cleanup = () => {
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+    window[cbName] = (data) => { done = true; cleanup(); resolve(data); };
+    script.onerror = () => { if (!done) { cleanup(); reject(new Error('JSONP fail')); } };
+    setTimeout(() => { if (!done) { cleanup(); reject(new Error('JSONP timeout')); } }, timeoutMs);
+    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cbName + '&format=json';
+    document.head.appendChild(script);
+  });
+}
+
+async function vworldSearch(query) {
+  const base = 'https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=EPSG:4326&size=8&page=1&key=' + VWORLD_KEY;
+  const q = encodeURIComponent(query);
+  const [addrRoad, addrParcel, place] = await Promise.allSettled([
+    jsonp(`${base}&query=${q}&type=address&category=road`),
+    jsonp(`${base}&query=${q}&type=address&category=parcel`),
+    jsonp(`${base}&query=${q}&type=place`),
+  ]);
+  const items = [];
+  const seen = new Set();
+  const pick = (r, kind) => {
+    if (r.status !== 'fulfilled') return;
+    const raw = r.value?.response?.result?.items || [];
+    raw.forEach(it => {
+      const pt = it.point;
+      if (!pt || !pt.x || !pt.y) return;
+      const lon = parseFloat(pt.x), lat = parseFloat(pt.y);
+      if (!isFinite(lon) || !isFinite(lat)) return;
+      let title = '', sub = '';
+      if (it.address) {
+        const a = it.address;
+        title = a[a.category] || a.road || a.parcel || '';
+        sub = (a.category === 'road' ? '📮 도로명' : '📋 지번') + (a.zipcode ? ' · ' + a.zipcode : '');
+        if (a.bldnm) title += ' (' + a.bldnm + ')';
+      } else {
+        title = it.title || '';
+        sub = '📍 지명';
+      }
+      const key = title + '|' + lat.toFixed(5) + '|' + lon.toFixed(5);
+      if (!title || seen.has(key)) return;
+      seen.add(key);
+      items.push({ title, sub, lat, lon });
+    });
+  };
+  pick(addrRoad, 'road');
+  pick(addrParcel, 'parcel');
+  pick(place, 'place');
+  return items.slice(0, 10);
+}
+
+function renderAddrResults(items, query) {
+  if (!items.length) {
+    addrResults.innerHTML = `<div style="padding:14px;color:#888;font-size:12px;text-align:center;">'${query}' 검색 결과 없음</div>`;
+    addrResults.style.display = 'block';
+    return;
+  }
+  addrResults.innerHTML = items.map((it, i) => `
+    <div class="addr-item" data-idx="${i}" style="padding:9px 12px;border-bottom:1px solid #f0f0f3;cursor:pointer;">
+      <div style="font-size:13px;font-weight:500;color:#1d1d1f;line-height:1.35;">${it.title}</div>
+      <div style="font-size:11px;color:#86868b;margin-top:2px;">${it.sub}</div>
+    </div>
+  `).join('');
+  addrResults.style.display = 'block';
+  addrResults.querySelectorAll('.addr-item').forEach(el => {
+    el.addEventListener('mouseenter', () => el.style.background = '#f6f6f8');
+    el.addEventListener('mouseleave', () => el.style.background = '');
+    el.addEventListener('click', () => {
+      const it = items[parseInt(el.dataset.idx, 10)];
+      addrResults.style.display = 'none';
+      addrInput.value = it.title;
+      map.flyTo({ center: [it.lon, it.lat], zoom: 17, duration: 900 });
+      if (addrMarker) addrMarker.remove();
+      addrMarker = new maplibregl.Marker({ color: '#e63946' })
+        .setLngLat([it.lon, it.lat])
+        .setPopup(new maplibregl.Popup({ offset: 25, maxWidth: '260px' })
+          .setHTML(`<div style="font-size:12px;font-weight:600;">${it.title}</div><div style="font-size:11px;color:#666;margin-top:2px;">${it.sub}</div>`))
+        .addTo(map)
+        .togglePopup();
+    });
+  });
+}
+
+addrInput.addEventListener('input', () => {
+  const q = addrInput.value.trim();
+  clearTimeout(addrDebounceTimer);
+  if (q.length < 2) { addrResults.style.display = 'none'; return; }
+  addrDebounceTimer = setTimeout(async () => {
+    try {
+      const items = await vworldSearch(q);
+      // 그 사이 사용자가 지웠거나 다른 걸 입력했으면 무시
+      if (addrInput.value.trim() !== q) return;
+      renderAddrResults(items, q);
+    } catch (e) {
+      addrResults.innerHTML = `<div style="padding:14px;color:#e63946;font-size:12px;text-align:center;">검색 오류: ${e.message}</div>`;
+      addrResults.style.display = 'block';
+    }
+  }, 260);
+});
+addrInput.addEventListener('focus', () => {
+  if (addrInput.value.trim().length >= 2 && addrResults.children.length) addrResults.style.display = 'block';
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.addr-search')) addrResults.style.display = 'none';
+});
+addrInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { addrResults.style.display = 'none'; addrInput.blur(); }
+});
 
 function ownerFilter() {
   const a = Array.from(state.activeOwners);
@@ -629,7 +769,10 @@ function jumpIros(pnu, addr) {
   alert('주소 복사됨:\n' + clean + '\n\niros.go.kr "소재지번검색" 탭에서 붙여넣기');
   window.open('http://www.iros.go.kr/index.jsp', '_blank');
 }
-function jumpEum(pnu) { window.open(`https://www.eum.go.kr/web/am/amMain.jsp?pnu=${pnu}`, '_blank'); }
+function jumpEum(pnu) {
+  // 필지 상세 화면으로 직행. luLandDet.jsp가 pnu 파라미터를 자동 검색해 표시.
+  window.open(`https://www.eum.go.kr/web/ar/lu/luLandDet.jsp?pnu=${pnu}`, '_blank');
+}
 function copyAddr(addr) { navigator.clipboard.writeText(addr).then(()=> alert('주소 복사됨:\n' + addr)); }
 
 function updateMapFilters() {
