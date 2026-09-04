@@ -15,9 +15,10 @@
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",sans-serif;
          color:#1d1d1f; background:#f6f6f8; overflow:hidden; }
+  :root { --header-h: 48px; }
   header { display:flex; align-items:center; justify-content:space-between;
            padding:10px 18px; background:#fff; border-bottom:1px solid #e5e5ea;
-           height:48px; flex-shrink:0; }
+           height:var(--header-h); flex-shrink:0; flex-wrap:wrap; gap:8px; }
   header .brand { display:flex; gap:10px; align-items:center; }
   header h1 { margin:0; font-size:15px; font-weight:700; }
   header .sub { font-size:11px; color:#86868b; margin-left:8px; }
@@ -25,7 +26,7 @@
   .tab { padding:6px 14px; border:none; background:#f0f0f3; border-radius:8px;
          font-size:13px; cursor:pointer; color:#666; font-weight:500; }
   .tab.active { background:#1d1d1f; color:#fff; }
-  .layout { display:flex; height:calc(100vh - 48px); width:100vw; }
+  .layout { display:flex; height:calc(100vh - var(--header-h)); width:100vw; }
   .sidebar { width: 250px; background:#fff; border-right:1px solid #e5e5ea;
              overflow-y:auto; padding:14px; flex-shrink:0; }
   .main-wrap { flex:1; display:flex; min-width:0; }
@@ -128,24 +129,29 @@
   .modal-close { border:none; background:transparent; font-size:20px; cursor:pointer; color:#888; }
   .hamburger { display:none; background:transparent; border:none; padding:6px 8px; font-size:18px;
                cursor:pointer; color:#1d1d1f; margin-right:8px; }
-  .sidebar-backdrop { display:none; position:fixed; inset:48px 0 0 0; background:rgba(0,0,0,0.4); z-index:999; }
+  .sidebar-backdrop { display:none; position:fixed; inset:var(--header-h) 0 0 0; background:rgba(0,0,0,0.4); z-index:999; }
   .sidebar-backdrop.open { display:block; }
   /* Mobile (≤768px) */
   @media (max-width: 768px) {
+    :root { --header-h: 92px; }
     .hamburger { display:inline-block; }
     .brand h1 { font-size:14px; }
     .brand .sub { display:none; }
-    header { padding:8px 12px; }
+    header { padding:6px 12px; row-gap:4px; }
+    /* 검색창을 두 번째 줄로 밀어 100% 너비 확보 */
+    .addr-search { order: 99; flex-basis: 100%; max-width: 100%; margin: 0 !important; }
+    .addr-search input { padding: 9px 12px; font-size: 14px; }
+    .addr-search #addr-results { top: 42px; }
     .tab { padding:5px 10px; font-size:12px; }
     .sidebar {
-      position:fixed; left:-280px; top:48px; bottom:0; width:260px; z-index:1000;
+      position:fixed; left:-280px; top:var(--header-h); bottom:0; width:260px; z-index:1000;
       transition:left 0.22s ease; box-shadow:2px 0 14px rgba(0,0,0,0.15);
     }
     .sidebar.open { left:0; }
     .main-wrap { width:100%; }
-    .right-panel { position:fixed; inset:48px 0 0 0; width:100%; z-index:998; }
+    .right-panel { position:fixed; inset:var(--header-h) 0 0 0; width:100%; z-index:998; }
     .right-panel.open { display:flex; }
-    .right-panel.expanded { inset:48px 0 0 0; }
+    .right-panel.expanded { inset:var(--header-h) 0 0 0; }
     .map-wrap.hidden { display:none; }
     .pcard .head { font-size:14px; }
     .pcard .meta { font-size:12.5px; }
@@ -182,7 +188,7 @@
     <button type="button" id="open-methodology" class="tab" style="background:#f4f4f9;color:#0071e3;font-weight:600;">📋 매칭 기준</button>
     <div class="tabs">
       <button type="button" class="tab active" data-view="map">지도</button>
-      <button type="button" class="tab" data-view="list">목록 (192,238)</button>
+      <button type="button" class="tab" data-view="list">목록 (199,475)</button>
     </div>
   </div>
 </header>
@@ -226,8 +232,8 @@
 <div class="layout">
   <aside class="sidebar" id="sidebar">
     <div class="stat-card">
-      <div class="big">29.6%</div>
-      <div class="label">전국 192,238건 중 사유지 56,920건</div>
+      <div class="big">29.4%</div>
+      <div class="label">전국 199,475건 중 사유지 58,622건</div>
     </div>
     <button type="button" id="preset-litigation" style="width:100%;padding:10px;margin-bottom:14px;background:linear-gradient(135deg,#0071e3,#0058b3);color:#fff;border:none;border-radius:10px;font-size:13px;cursor:pointer;font-weight:700;box-shadow:0 2px 8px rgba(0,113,227,0.25);">
       🎯 수용청구 후보 (원클릭)
@@ -269,6 +275,12 @@
       <span class="toggle-all" id="jimok-all" style="margin-left:auto;">전체</span>
       <span class="toggle-all" id="jimok-natural">자연만</span></h2>
     <div id="jimok-filters"></div>
+    <label class="filter-row" style="margin-top:4px;padding:6px 4px;background:#f0f7ff;border-radius:5px;" title="지목이 '대'인데 건물이 없는 나대지. 공원지정으로 개발 봉인당해 매수청구 유리한 알박기 케이스. 기본 필터에는 '대'가 빠져있어서 이 옵션을 켜면 미건축 나대지만 추가로 포함됨.">
+      <input type="checkbox" id="include-unbuilt-dae">
+      <span class="chip" style="background:#4a90e2;"></span>
+      <span style="font-size:12.5px;">🏗 미건축 대지 (나대지) 포함</span>
+      <span style="margin-left:auto;color:#0071e3;font-size:11px;" title="지목=대 AND 건물본번 없음">ⓘ</span>
+    </label>
     <h2>배경 지도</h2>
     <div id="basemap-picker"></div>
 
@@ -309,6 +321,18 @@
       <div class="toolbar" style="background:#fff;padding:6px 14px;justify-content:space-between;">
         <span id="row-count" style="font-size:11px;color:#86868b;"></span>
         <button type="button" id="showAllBtn" style="display:none;padding:4px 10px;background:#1d1d1f;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;font-weight:600;">전체보기</button>
+      </div>
+      <div id="summary-row" style="display:none;position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#fff8f0,#fdefdb);border-bottom:2px solid #e8b96f;padding:10px 14px;font-size:12px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <span style="font-size:10.5px;font-weight:700;color:#8b5a1a;letter-spacing:.05em;text-transform:uppercase;">🇰🇷 전국 필터 합계</span>
+          <span id="summary-note" style="font-size:10.5px;color:#a68551;"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;">
+          <div><div style="font-size:10px;color:#a68551;text-transform:uppercase;letter-spacing:.05em;">필지</div><div id="sum-cnt" style="font-size:14px;font-weight:700;color:#5a3d10;font-variant-numeric:tabular-nums;">—</div></div>
+          <div><div style="font-size:10px;color:#a68551;text-transform:uppercase;letter-spacing:.05em;">면적</div><div id="sum-area" style="font-size:14px;font-weight:700;color:#5a3d10;font-variant-numeric:tabular-nums;">—</div></div>
+          <div><div style="font-size:10px;color:#a68551;text-transform:uppercase;letter-spacing:.05em;">공시지가 합</div><div id="sum-price" style="font-size:14px;font-weight:700;color:#5a3d10;font-variant-numeric:tabular-nums;">—</div></div>
+          <div><div style="font-size:10px;color:#a68551;text-transform:uppercase;letter-spacing:.05em;">시·도</div><div id="sum-sido" style="font-size:14px;font-weight:700;color:#5a3d10;font-variant-numeric:tabular-nums;">—</div></div>
+        </div>
       </div>
       <div class="compact-list" id="compact-list">
         <div id="listLoading" style="padding:30px;text-align:center;color:#888;font-size:12px;display:none;">
@@ -354,7 +378,7 @@ const PARK_CATS = ["공원", "녹지", "광장", "유원지"];
 const PARK_COLORS = {"공원": "#a8dadc", "녹지": "#b7e4c7", "광장": "#fee08b", "유원지": "#cbb9ff"};
 const JIMOK_GROUPS = {"자연/녹지": ["임야", "전", "답", "유지", "구거", "하천", "제방"], "공원/잡종": ["공원", "잡종지"], "건물용지": ["대"], "도로/시설": ["도로", "주차장", "철도용지", "수도용지"], "공공/기타": ["종교용지", "학교용지"]};
 const JIMOK_GROUP_COLORS = {"자연/녹지": "#588157", "공원/잡종": "#2a9d8f", "건물용지": "#e63946", "도로/시설": "#6c757d", "공공/기타": "#9b5de5"};
-const STATS = {"total_parcels": 192238, "private_total": 56920, "private_pct": 29.6, "owner_counts": {"군유지": 54413, "국유지": 51065, "법인": 25058, "개인": 31862, "시 도유지": 27989, "종중": 710, "종교단체": 509, "기타단체": 381, "외국인 외국공공기관": 174, "일본인 창씨명등": 77}, "jimok_counts": {"공원": 23061, "대": 30939, "도로": 40630, "임야": 25869, "잡종지": 5236, "전": 24192, "구거": 6631, "제방": 1323, "": 31, "종교용지": 205, "과수원": 760, "수도용지": 1050, "답": 20416, "하천": 3896, "체육용지": 441, "묘지": 913, "창고용지": 215, "목장용지": 369, "주차장": 196, "유지": 2013, "공장용지": 549, "철도용지": 2100, "학교용지": 185, "주유소용지": 110, "염전": 76, "유원지": 613, "양어장": 9, "사적지": 205, "광천지": 5}, "park_type_counts": {"녹지": 19899, "공원": 16994, "광장": 3571, "유원지": 100}, "sgg_counts": {"강원특별자치도 춘천시": 4, "강원특별자치도 원주시": 2101, "전북특별자치도 남원시": 6, "전북특별자치도 완주군": 2, "전북특별자치도 익산시": 33, "충청남도 공주시": 1227, "충청남도 천안시 동남구": 2957, "충청북도 청주시 흥덕구": 2207, "충청북도 청주시 서원구": 557, "경상남도 창원시 진해구": 30, "경상남도 진주시": 56, "경상남도 김해시": 2, "경상남도 양산시": 85, "전라남도 목포시": 5679, "전라남도 해남군": 445, "전라남도 영암군": 547, "전라남도 무안군": 412, "전라남도 신안군": 17, "전라남도 여수시": 373, "전라남도 순천시": 4454, "제주특별자치도 제주시": 111, "전라남도 함평군": 11, "전라남도 나주시": 730, "전라남도 광양시": 55, "전라남도 곡성군": 73, "전라남도 구례군": 408, "전라남도 고흥군": 475, "전라남도 화순군": 245, "전라남도 장흥군": 732, "전라남도 강진군": 804, "전라남도 진도군": 163, "경상북도 포항시 북구": 2808, "경상북도 포항시 남구": 2792, "경상북도 경주시": 196, "경상북도 김천시": 1835, "경상북도 영주시": 704, "경상북도 상주시": 1, "경상북도 영천시": 17, "경상북도 영양군": 294, "경상북도 영덕군": 308, "충청북도 청주시 청원구": 1204, "충청북도 청주시 상당구": 887, "충청북도 충주시": 2018, "충청북도 제천시": 3, "충청남도 금산군": 290, "충청북도 보은군": 62, "충청북도 옥천군": 273, "충청북도 증평군": 349, "충청북도 괴산군": 59, "충청북도 진천군": 681, "충청남도 천안시 서북구": 2007, "충청남도 아산시": 3747, "충청남도 보령시": 1058, "충청남도 서산시": 1239, "충청남도 논산시": 6, "충청남도 계룡시": 204, "충청남도 서천군": 322, "충청남도 부여군": 36, "충청남도 청양군": 22, "충청남도 홍성군": 681, "충청남도 태안군": 2, "대구광역시 서구": 243, "대구광역시 중구": 54, "대구광역시 달서구": 1415, "대구광역시 동구": 761, "대구광역시 남구": 59, "경기도 수원시 장안구": 1974, "경기도 수원시 팔달구": 1463, "경기도 수원시 권선구": 3472, "경기도 수원시 영통구": 1713, "경기도 의왕시": 2481, "경기도 안산시 상록구": 1994, "울산광역시 중구": 1448, "울산광역시 남구": 3753, "울산광역시 북구": 652, "울산광역시 울주군": 1620, "경기도 용인시 기흥구": 4001, "경기도 용인시 수지구": 1567, "서울특별시 서초구": 2879, "서울특별시 강남구": 1731, "서울특별시 송파구": 1766, "경기도 성남시 수정구": 2340, "경기도 성남시 중원구": 1153, "경기도 성남시 분당구": 1405, "경기도 하남시": 1780, "경기도 광주시": 238, "경기도 과천시": 3601, "서울특별시 도봉구": 419, "경기도 의정부시": 3236, "서울특별시 노원구": 1882, "경기도 남양주시": 3302, "경기도 양주시": 578, "서울특별시 금천구": 417, "경기도 안양시 만안구": 941, "서울특별시 관악구": 2117, "경기도 안양시 동안구": 616, "경기도 광명시": 3579, "경기도 시흥시": 3379, "경기도 군포시": 2144, "인천광역시 부평구": 371, "서울특별시 구로구": 880, "경기도 부천시 원미구": 814, "경기도 부천시 소사구": 395, "경기도 부천시 오정구": 1356, "인천광역시 남동구": 502, "서울특별시 양천구": 536, "인천광역시 계양구": 179, "서울특별시 강서구": 1555, "서울특별시 영등포구": 1191, "경기도 평택시": 2309, "경기도 동두천시": 846, "경기도 포천시": 344, "경기도 연천군": 123, "경기도 안산시 단원구": 1869, "서울특별시 종로구": 3076, "서울특별시 성북구": 2366, "서울특별시 은평구": 2160, "서울특별시 서대문구": 2203, "경기도 고양시 일산동구": 1400, "경기도 고양시 일산서구": 813, "경기도 고양시 덕양구": 3557, "경기도 파주시": 990, "경기도 김포시": 669, "울산광역시 동구": 1137, "서울특별시 광진구": 571, "서울특별시 중랑구": 1212, "서울특별시 강동구": 1790, "경기도 구리시": 2, "경기도 오산시": 1457, "인천광역시 미추홀구": 329, "인천광역시 중구": 742, "인천광역시 동구": 78, "인천광역시 연수구": 205, "경기도 용인시 처인구": 6447, "경기도 여주시": 1, "충청북도 음성군": 32, "경기도 이천시": 1250, "인천광역시 서구": 578, "서울특별시 강북구": 821, "부산광역시 기장군": 550, "서울특별시 중구": 1314, "서울특별시 동대문구": 1155, "서울특별시 용산구": 1697, "서울특별시 성동구": 1160, "서울특별시 마포구": 1246, "서울특별시 동작구": 2103, "대구광역시 북구": 625, "대구광역시 수성구": 220, "부산광역시 중구": 24, "부산광역시 서구": 533, "부산광역시 동구": 612, "부산광역시 사하구": 96, "부산광역시 부산진구": 111, "부산광역시 영도구": 18, "부산광역시 동래구": 158, "부산광역시 남구": 102, "부산광역시 북구": 265, "부산광역시 연제구": 33, "부산광역시 금정구": 101, "부산광역시 수영구": 23, "부산광역시 강서구": 1210, "부산광역시 사상구": 55, "부산광역시 해운대구": 325, "대전광역시 대덕구": 1662, "대전광역시 동구": 2071, "대전광역시 중구": 2355, "대전광역시 서구": 1463, "대전광역시 유성구": 720, "인천광역시 강화군": 351, "대구광역시 달성군": 8, "광주광역시 동구": 444, "광주광역시 서구": 2166, "광주광역시 남구": 1025, "광주광역시 북구": 338, "광주광역시 광산구": 1464}, "sgg_private": {"강원특별자치도 원주시": 536, "충청남도 천안시 동남구": 739, "충청남도 공주시": 199, "충청북도 청주시 서원구": 134, "충청북도 청주시 흥덕구": 681, "경상남도 창원시 진해구": 2, "경상남도 진주시": 37, "전라남도 목포시": 1335, "전라남도 해남군": 209, "전라남도 영암군": 158, "전라남도 무안군": 59, "전라남도 신안군": 2, "전라남도 순천시": 910, "전라남도 여수시": 8, "제주특별자치도 제주시": 2, "전라남도 나주시": 94, "전라남도 광양시": 31, "전라남도 곡성군": 7, "전라남도 구례군": 93, "전라남도 고흥군": 44, "전라남도 장흥군": 57, "전라남도 강진군": 94, "전라남도 함평군": 6, "전라남도 진도군": 10, "경상북도 포항시 남구": 722, "경상북도 포항시 북구": 519, "경상북도 김천시": 104, "경상북도 영주시": 58, "경상북도 영천시": 3, "경상북도 영양군": 30, "경상북도 영덕군": 34, "충청북도 청주시 청원구": 235, "충청북도 청주시 상당구": 251, "충청북도 충주시": 316, "충청북도 옥천군": 66, "충청북도 증평군": 46, "충청북도 괴산군": 5, "충청북도 진천군": 99, "충청남도 천안시 서북구": 553, "충청남도 보령시": 409, "충청남도 아산시": 554, "충청남도 서산시": 238, "충청남도 논산시": 1, "충청남도 계룡시": 12, "충청남도 금산군": 30, "충청남도 부여군": 15, "충청남도 서천군": 48, "충청남도 청양군": 4, "충청남도 홍성군": 19, "충청남도 태안군": 1, "대구광역시 서구": 108, "대구광역시 달서구": 304, "대구광역시 중구": 6, "대구광역시 동구": 130, "경기도 수원시 장안구": 124, "경기도 수원시 권선구": 1123, "경기도 수원시 팔달구": 102, "경기도 수원시 영통구": 519, "경기도 의왕시": 822, "경기도 안산시 상록구": 532, "울산광역시 중구": 520, "울산광역시 남구": 544, "울산광역시 북구": 281, "울산광역시 울주군": 558, "경기도 용인시 기흥구": 1262, "경기도 용인시 수지구": 408, "서울특별시 서초구": 1003, "서울특별시 강남구": 721, "서울특별시 송파구": 959, "경기도 성남시 수정구": 1152, "경기도 성남시 중원구": 447, "경기도 성남시 분당구": 434, "경기도 광주시": 28, "서울특별시 도봉구": 65, "서울특별시 노원구": 620, "경기도 의정부시": 798, "경기도 남양주시": 664, "경기도 양주시": 127, "서울특별시 금천구": 124, "서울특별시 관악구": 663, "경기도 안양시 만안구": 205, "경기도 안양시 동안구": 183, "경기도 광명시": 2232, "경기도 시흥시": 1469, "경기도 군포시": 826, "경기도 과천시": 1121, "인천광역시 부평구": 137, "서울특별시 구로구": 346, "경기도 부천시 소사구": 88, "경기도 부천시 오정구": 735, "경기도 부천시 원미구": 332, "서울특별시 양천구": 168, "경기도 평택시": 567, "경기도 동두천시": 337, "경기도 안산시 단원구": 272, "서울특별시 종로구": 826, "서울특별시 성북구": 1289, "서울특별시 은평구": 1285, "서울특별시 서대문구": 525, "경기도 고양시 일산동구": 327, "경기도 고양시 덕양구": 1044, "경기도 고양시 일산서구": 265, "경기도 파주시": 409, "경기도 김포시": 91, "울산광역시 동구": 361, "서울특별시 광진구": 129, "서울특별시 중랑구": 278, "서울특별시 강동구": 727, "경기도 오산시": 351, "인천광역시 중구": 246, "인천광역시 미추홀구": 149, "인천광역시 연수구": 36, "인천광역시 남동구": 136, "경기도 하남시": 341, "경기도 용인시 처인구": 3335, "경상북도 경주시": 39, "충청북도 음성군": 1, "경기도 이천시": 362, "인천광역시 계양구": 14, "인천광역시 서구": 163, "서울특별시 강서구": 344, "부산광역시 기장군": 167, "경상남도 양산시": 40, "경기도 포천시": 90, "경기도 연천군": 7, "서울특별시 중구": 433, "서울특별시 강북구": 322, "서울특별시 용산구": 920, "서울특별시 성동구": 484, "서울특별시 동대문구": 733, "서울특별시 마포구": 241, "서울특별시 동작구": 490, "서울특별시 영등포구": 608, "대구광역시 남구": 45, "대구광역시 북구": 141, "부산광역시 중구": 3, "부산광역시 서구": 137, "부산광역시 동구": 108, "부산광역시 부산진구": 30, "부산광역시 영도구": 4, "부산광역시 동래구": 61, "부산광역시 남구": 17, "부산광역시 연제구": 2, "부산광역시 금정구": 51, "부산광역시 북구": 32, "부산광역시 강서구": 228, "부산광역시 해운대구": 54, "부산광역시 사하구": 21, "부산광역시 사상구": 6, "대전광역시 동구": 439, "대전광역시 중구": 701, "대전광역시 서구": 552, "대전광역시 유성구": 362, "대전광역시 대덕구": 307, "인천광역시 동구": 39, "인천광역시 강화군": 243, "대구광역시 수성구": 125, "광주광역시 동구": 165, "광주광역시 남구": 181, "광주광역시 북구": 180, "전라남도 화순군": 67, "광주광역시 서구": 577, "광주광역시 광산구": 449}, "sgg_by_sido": {"강원특별자치도": {"춘천시": {"tot": 4, "priv": 0}, "원주시": {"tot": 2101, "priv": 536}}, "전북특별자치도": {"남원시": {"tot": 6, "priv": 0}, "완주군": {"tot": 2, "priv": 0}, "익산시": {"tot": 33, "priv": 0}}, "충청남도": {"공주시": {"tot": 1227, "priv": 199}, "천안시 동남구": {"tot": 2957, "priv": 739}, "금산군": {"tot": 290, "priv": 30}, "천안시 서북구": {"tot": 2007, "priv": 553}, "아산시": {"tot": 3747, "priv": 554}, "보령시": {"tot": 1058, "priv": 409}, "서산시": {"tot": 1239, "priv": 238}, "논산시": {"tot": 6, "priv": 1}, "계룡시": {"tot": 204, "priv": 12}, "서천군": {"tot": 322, "priv": 48}, "부여군": {"tot": 36, "priv": 15}, "청양군": {"tot": 22, "priv": 4}, "홍성군": {"tot": 681, "priv": 19}, "태안군": {"tot": 2, "priv": 1}}, "충청북도": {"청주시 흥덕구": {"tot": 2207, "priv": 681}, "청주시 서원구": {"tot": 557, "priv": 134}, "청주시 청원구": {"tot": 1204, "priv": 235}, "청주시 상당구": {"tot": 887, "priv": 251}, "충주시": {"tot": 2018, "priv": 316}, "제천시": {"tot": 3, "priv": 0}, "보은군": {"tot": 62, "priv": 0}, "옥천군": {"tot": 273, "priv": 66}, "증평군": {"tot": 349, "priv": 46}, "괴산군": {"tot": 59, "priv": 5}, "진천군": {"tot": 681, "priv": 99}, "음성군": {"tot": 32, "priv": 1}}, "경상남도": {"창원시 진해구": {"tot": 30, "priv": 2}, "진주시": {"tot": 56, "priv": 37}, "김해시": {"tot": 2, "priv": 0}, "양산시": {"tot": 85, "priv": 40}}, "전라남도": {"목포시": {"tot": 5679, "priv": 1335}, "해남군": {"tot": 445, "priv": 209}, "영암군": {"tot": 547, "priv": 158}, "무안군": {"tot": 412, "priv": 59}, "신안군": {"tot": 17, "priv": 2}, "여수시": {"tot": 373, "priv": 8}, "순천시": {"tot": 4454, "priv": 910}, "함평군": {"tot": 11, "priv": 6}, "나주시": {"tot": 730, "priv": 94}, "광양시": {"tot": 55, "priv": 31}, "곡성군": {"tot": 73, "priv": 7}, "구례군": {"tot": 408, "priv": 93}, "고흥군": {"tot": 475, "priv": 44}, "화순군": {"tot": 245, "priv": 67}, "장흥군": {"tot": 732, "priv": 57}, "강진군": {"tot": 804, "priv": 94}, "진도군": {"tot": 163, "priv": 10}}, "제주특별자치도": {"제주시": {"tot": 111, "priv": 2}}, "경상북도": {"포항시 북구": {"tot": 2808, "priv": 519}, "포항시 남구": {"tot": 2792, "priv": 722}, "경주시": {"tot": 196, "priv": 39}, "김천시": {"tot": 1835, "priv": 104}, "영주시": {"tot": 704, "priv": 58}, "상주시": {"tot": 1, "priv": 0}, "영천시": {"tot": 17, "priv": 3}, "영양군": {"tot": 294, "priv": 30}, "영덕군": {"tot": 308, "priv": 34}}, "대구광역시": {"서구": {"tot": 243, "priv": 108}, "중구": {"tot": 54, "priv": 6}, "달서구": {"tot": 1415, "priv": 304}, "동구": {"tot": 761, "priv": 130}, "남구": {"tot": 59, "priv": 45}, "북구": {"tot": 625, "priv": 141}, "수성구": {"tot": 220, "priv": 125}, "달성군": {"tot": 8, "priv": 0}}, "경기도": {"수원시 장안구": {"tot": 1974, "priv": 124}, "수원시 팔달구": {"tot": 1463, "priv": 102}, "수원시 권선구": {"tot": 3472, "priv": 1123}, "수원시 영통구": {"tot": 1713, "priv": 519}, "의왕시": {"tot": 2481, "priv": 822}, "안산시 상록구": {"tot": 1994, "priv": 532}, "용인시 기흥구": {"tot": 4001, "priv": 1262}, "용인시 수지구": {"tot": 1567, "priv": 408}, "성남시 수정구": {"tot": 2340, "priv": 1152}, "성남시 중원구": {"tot": 1153, "priv": 447}, "성남시 분당구": {"tot": 1405, "priv": 434}, "하남시": {"tot": 1780, "priv": 341}, "광주시": {"tot": 238, "priv": 28}, "과천시": {"tot": 3601, "priv": 1121}, "의정부시": {"tot": 3236, "priv": 798}, "남양주시": {"tot": 3302, "priv": 664}, "양주시": {"tot": 578, "priv": 127}, "안양시 만안구": {"tot": 941, "priv": 205}, "안양시 동안구": {"tot": 616, "priv": 183}, "광명시": {"tot": 3579, "priv": 2232}, "시흥시": {"tot": 3379, "priv": 1469}, "군포시": {"tot": 2144, "priv": 826}, "부천시 원미구": {"tot": 814, "priv": 332}, "부천시 소사구": {"tot": 395, "priv": 88}, "부천시 오정구": {"tot": 1356, "priv": 735}, "평택시": {"tot": 2309, "priv": 567}, "동두천시": {"tot": 846, "priv": 337}, "포천시": {"tot": 344, "priv": 90}, "연천군": {"tot": 123, "priv": 7}, "안산시 단원구": {"tot": 1869, "priv": 272}, "고양시 일산동구": {"tot": 1400, "priv": 327}, "고양시 일산서구": {"tot": 813, "priv": 265}, "고양시 덕양구": {"tot": 3557, "priv": 1044}, "파주시": {"tot": 990, "priv": 409}, "김포시": {"tot": 669, "priv": 91}, "구리시": {"tot": 2, "priv": 0}, "오산시": {"tot": 1457, "priv": 351}, "용인시 처인구": {"tot": 6447, "priv": 3335}, "여주시": {"tot": 1, "priv": 0}, "이천시": {"tot": 1250, "priv": 362}}, "울산광역시": {"중구": {"tot": 1448, "priv": 520}, "남구": {"tot": 3753, "priv": 544}, "북구": {"tot": 652, "priv": 281}, "울주군": {"tot": 1620, "priv": 558}, "동구": {"tot": 1137, "priv": 361}}, "서울특별시": {"서초구": {"tot": 2879, "priv": 1003}, "강남구": {"tot": 1731, "priv": 721}, "송파구": {"tot": 1766, "priv": 959}, "도봉구": {"tot": 419, "priv": 65}, "노원구": {"tot": 1882, "priv": 620}, "금천구": {"tot": 417, "priv": 124}, "관악구": {"tot": 2117, "priv": 663}, "구로구": {"tot": 880, "priv": 346}, "양천구": {"tot": 536, "priv": 168}, "강서구": {"tot": 1555, "priv": 344}, "영등포구": {"tot": 1191, "priv": 608}, "종로구": {"tot": 3076, "priv": 826}, "성북구": {"tot": 2366, "priv": 1289}, "은평구": {"tot": 2160, "priv": 1285}, "서대문구": {"tot": 2203, "priv": 525}, "광진구": {"tot": 571, "priv": 129}, "중랑구": {"tot": 1212, "priv": 278}, "강동구": {"tot": 1790, "priv": 727}, "강북구": {"tot": 821, "priv": 322}, "중구": {"tot": 1314, "priv": 433}, "동대문구": {"tot": 1155, "priv": 733}, "용산구": {"tot": 1697, "priv": 920}, "성동구": {"tot": 1160, "priv": 484}, "마포구": {"tot": 1246, "priv": 241}, "동작구": {"tot": 2103, "priv": 490}}, "인천광역시": {"부평구": {"tot": 371, "priv": 137}, "남동구": {"tot": 502, "priv": 136}, "계양구": {"tot": 179, "priv": 14}, "미추홀구": {"tot": 329, "priv": 149}, "중구": {"tot": 742, "priv": 246}, "동구": {"tot": 78, "priv": 39}, "연수구": {"tot": 205, "priv": 36}, "서구": {"tot": 578, "priv": 163}, "강화군": {"tot": 351, "priv": 243}}, "부산광역시": {"기장군": {"tot": 550, "priv": 167}, "중구": {"tot": 24, "priv": 3}, "서구": {"tot": 533, "priv": 137}, "동구": {"tot": 612, "priv": 108}, "사하구": {"tot": 96, "priv": 21}, "부산진구": {"tot": 111, "priv": 30}, "영도구": {"tot": 18, "priv": 4}, "동래구": {"tot": 158, "priv": 61}, "남구": {"tot": 102, "priv": 17}, "북구": {"tot": 265, "priv": 32}, "연제구": {"tot": 33, "priv": 2}, "금정구": {"tot": 101, "priv": 51}, "수영구": {"tot": 23, "priv": 0}, "강서구": {"tot": 1210, "priv": 228}, "사상구": {"tot": 55, "priv": 6}, "해운대구": {"tot": 325, "priv": 54}}, "대전광역시": {"대덕구": {"tot": 1662, "priv": 307}, "동구": {"tot": 2071, "priv": 439}, "중구": {"tot": 2355, "priv": 701}, "서구": {"tot": 1463, "priv": 552}, "유성구": {"tot": 720, "priv": 362}}, "광주광역시": {"동구": {"tot": 444, "priv": 165}, "서구": {"tot": 2166, "priv": 577}, "남구": {"tot": 1025, "priv": 181}, "북구": {"tot": 338, "priv": 180}, "광산구": {"tot": 1464, "priv": 449}}}};
+const STATS = {"total_parcels": 199475, "private_total": 58622, "private_pct": 29.4, "owner_counts": {"군유지": 54434, "국유지": 52848, "법인": 25977, "개인": 32645, "시 도유지": 31626, "종중": 723, "종교단체": 558, "일본인 창씨명등": 79, "기타단체": 409, "외국인 외국공공기관": 176}, "jimok_counts": {"공원": 23993, "대": 31906, "도로": 42507, "임야": 26730, "잡종지": 5357, "전": 25317, "구거": 6867, "제방": 1391, "": 32, "종교용지": 210, "과수원": 727, "수도용지": 1060, "답": 21019, "하천": 4058, "체육용지": 451, "묘지": 1072, "창고용지": 219, "목장용지": 383, "주차장": 212, "유지": 2058, "공장용지": 557, "철도용지": 2137, "주유소용지": 114, "유원지": 614, "사적지": 207, "학교용지": 189, "양어장": 9, "염전": 76, "광천지": 3}, "park_type_counts": {"녹지": 19899, "공원": 16994, "광장": 3571, "유원지": 100}, "sgg_counts": {"강원특별자치도 춘천시": 4, "강원특별자치도 원주시": 2121, "전북특별자치도 남원시": 6, "전북특별자치도 완주군": 2, "전북특별자치도 익산시": 36, "대구광역시 서구": 250, "대구광역시 중구": 54, "대구광역시 달서구": 1818, "대구광역시 동구": 1310, "대구광역시 남구": 66, "경기도 수원시 장안구": 1974, "경기도 수원시 팔달구": 1463, "경기도 수원시 권선구": 3472, "경기도 수원시 영통구": 1713, "경기도 의왕시": 2481, "경기도 안산시 상록구": 1994, "울산광역시 중구": 1448, "울산광역시 남구": 3753, "울산광역시 북구": 652, "울산광역시 울주군": 1620, "경기도 용인시 기흥구": 4001, "경기도 용인시 수지구": 1567, "서울특별시 서초구": 2879, "서울특별시 강남구": 1731, "서울특별시 송파구": 1766, "경기도 성남시 수정구": 2340, "경기도 성남시 중원구": 1153, "경기도 성남시 분당구": 1405, "경기도 하남시": 1780, "경기도 광주시": 238, "경기도 과천시": 3601, "서울특별시 도봉구": 419, "경기도 의정부시": 3236, "서울특별시 노원구": 1882, "경기도 남양주시": 3302, "경기도 양주시": 578, "서울특별시 금천구": 417, "경기도 안양시 만안구": 941, "서울특별시 관악구": 2117, "경기도 안양시 동안구": 616, "경기도 광명시": 3579, "경기도 시흥시": 3379, "경기도 군포시": 2144, "인천광역시 부평구": 371, "서울특별시 구로구": 880, "경기도 부천시 원미구": 814, "경기도 부천시 소사구": 395, "경기도 부천시 오정구": 1356, "인천광역시 남동구": 502, "서울특별시 양천구": 536, "인천광역시 계양구": 179, "서울특별시 강서구": 1555, "서울특별시 영등포구": 1191, "경기도 평택시": 2309, "경기도 동두천시": 846, "경기도 포천시": 344, "경기도 연천군": 123, "경기도 안산시 단원구": 1869, "서울특별시 종로구": 3076, "서울특별시 성북구": 2366, "서울특별시 은평구": 2160, "서울특별시 서대문구": 2203, "경기도 고양시 일산동구": 1400, "경기도 고양시 일산서구": 813, "경기도 고양시 덕양구": 3557, "경기도 파주시": 990, "경기도 김포시": 669, "울산광역시 동구": 1137, "서울특별시 광진구": 571, "서울특별시 중랑구": 1212, "서울특별시 강동구": 1790, "경기도 구리시": 2, "경기도 오산시": 1457, "인천광역시 미추홀구": 329, "인천광역시 중구": 742, "인천광역시 동구": 78, "인천광역시 연수구": 205, "경기도 용인시 처인구": 6447, "경기도 여주시": 1, "경기도 이천시": 1250, "인천광역시 서구": 578, "서울특별시 강북구": 821, "부산광역시 기장군": 823, "서울특별시 중구": 1314, "서울특별시 동대문구": 1155, "서울특별시 용산구": 1697, "서울특별시 성동구": 1160, "서울특별시 마포구": 1246, "서울특별시 동작구": 2103, "대구광역시 북구": 1370, "대구광역시 수성구": 453, "부산광역시 중구": 24, "부산광역시 서구": 533, "부산광역시 동구": 612, "부산광역시 사하구": 96, "부산광역시 부산진구": 111, "부산광역시 영도구": 18, "부산광역시 동래구": 158, "부산광역시 남구": 102, "부산광역시 북구": 404, "부산광역시 연제구": 33, "부산광역시 금정구": 132, "부산광역시 수영구": 23, "부산광역시 강서구": 2707, "부산광역시 사상구": 99, "부산광역시 해운대구": 325, "대전광역시 대덕구": 1663, "대전광역시 동구": 2071, "대전광역시 중구": 2355, "대전광역시 서구": 1463, "대전광역시 유성구": 854, "인천광역시 강화군": 351, "대구광역시 달성군": 265, "광주광역시 동구": 888, "광주광역시 서구": 4333, "광주광역시 남구": 2047, "광주광역시 북구": 1052, "광주광역시 광산구": 2099, "충청남도 공주시": 1119, "충청남도 천안시 동남구": 2956, "충청북도 청주시 흥덕구": 2207, "충청북도 청주시 서원구": 544, "경상남도 창원시 진해구": 30, "경상남도 진주시": 55, "경상남도 김해시": 1, "경상남도 양산시": 8, "전라남도 목포시": 5682, "전라남도 해남군": 445, "전라남도 영암군": 547, "전라남도 무안군": 412, "전라남도 신안군": 17, "전라남도 여수시": 373, "전라남도 순천시": 4452, "제주특별자치도 제주시": 111, "전라남도 함평군": 11, "전라남도 나주시": 730, "전라남도 광양시": 55, "전라남도 곡성군": 73, "전라남도 구례군": 407, "전라남도 고흥군": 475, "전라남도 화순군": 5, "전라남도 장흥군": 732, "전라남도 강진군": 805, "전라남도 진도군": 163, "경상북도 포항시 북구": 2808, "경상북도 포항시 남구": 2792, "경상북도 경주시": 13, "경상북도 김천시": 1835, "경상북도 영주시": 704, "경상북도 상주시": 1, "경상북도 영천시": 17, "경상북도 영양군": 295, "경상북도 영덕군": 308, "충청북도 청주시 청원구": 1204, "충청북도 청주시 상당구": 887, "충청북도 충주시": 2018, "충청북도 제천시": 3, "충청북도 보은군": 316, "충청남도 금산군": 131, "충청북도 옥천군": 238, "충청북도 증평군": 349, "충청북도 괴산군": 59, "충청북도 진천군": 529, "충청남도 천안시 서북구": 1279, "충청남도 아산시": 3179, "충청남도 보령시": 1057, "충청남도 서산시": 1239, "충청남도 논산시": 6, "충청남도 계룡시": 159, "충청남도 서천군": 322, "충청남도 부여군": 36, "충청남도 청양군": 22, "충청남도 홍성군": 681, "충청남도 태안군": 2}, "sgg_private": {"강원특별자치도 원주시": 537, "대구광역시 서구": 109, "대구광역시 달서구": 374, "대구광역시 중구": 6, "대구광역시 동구": 247, "경기도 수원시 장안구": 124, "경기도 수원시 권선구": 1123, "경기도 수원시 팔달구": 102, "경기도 수원시 영통구": 519, "경기도 의왕시": 822, "경기도 안산시 상록구": 532, "울산광역시 중구": 520, "울산광역시 남구": 544, "울산광역시 북구": 281, "울산광역시 울주군": 558, "경기도 용인시 기흥구": 1262, "경기도 용인시 수지구": 408, "서울특별시 서초구": 1003, "서울특별시 강남구": 721, "서울특별시 송파구": 959, "경기도 성남시 수정구": 1152, "경기도 성남시 중원구": 447, "경기도 성남시 분당구": 434, "경기도 광주시": 28, "서울특별시 도봉구": 65, "서울특별시 노원구": 620, "경기도 의정부시": 798, "경기도 남양주시": 664, "경기도 양주시": 127, "서울특별시 금천구": 124, "서울특별시 관악구": 663, "경기도 안양시 만안구": 205, "경기도 안양시 동안구": 183, "경기도 광명시": 2232, "경기도 시흥시": 1469, "경기도 군포시": 826, "경기도 과천시": 1121, "인천광역시 부평구": 137, "서울특별시 구로구": 346, "경기도 부천시 소사구": 88, "경기도 부천시 오정구": 735, "경기도 부천시 원미구": 332, "서울특별시 양천구": 168, "경기도 평택시": 567, "경기도 동두천시": 337, "경기도 안산시 단원구": 272, "서울특별시 종로구": 826, "서울특별시 성북구": 1289, "서울특별시 은평구": 1285, "서울특별시 서대문구": 525, "경기도 고양시 일산동구": 327, "경기도 고양시 덕양구": 1044, "경기도 고양시 일산서구": 265, "경기도 파주시": 409, "경기도 김포시": 91, "울산광역시 동구": 361, "서울특별시 광진구": 129, "서울특별시 중랑구": 278, "서울특별시 강동구": 727, "경기도 오산시": 351, "인천광역시 중구": 246, "인천광역시 미추홀구": 149, "인천광역시 연수구": 36, "인천광역시 남동구": 136, "경기도 하남시": 341, "경기도 용인시 처인구": 3335, "경기도 이천시": 362, "인천광역시 계양구": 14, "인천광역시 서구": 163, "서울특별시 강서구": 344, "부산광역시 기장군": 219, "경기도 포천시": 90, "경기도 연천군": 7, "서울특별시 중구": 433, "서울특별시 강북구": 322, "서울특별시 용산구": 920, "서울특별시 성동구": 484, "서울특별시 동대문구": 733, "서울특별시 마포구": 241, "서울특별시 동작구": 490, "서울특별시 영등포구": 608, "대구광역시 남구": 45, "대구광역시 북구": 273, "부산광역시 중구": 3, "부산광역시 서구": 137, "부산광역시 동구": 108, "부산광역시 부산진구": 30, "부산광역시 영도구": 4, "부산광역시 동래구": 61, "부산광역시 남구": 17, "부산광역시 연제구": 2, "부산광역시 금정구": 72, "부산광역시 북구": 60, "부산광역시 강서구": 588, "부산광역시 해운대구": 54, "부산광역시 사하구": 21, "부산광역시 사상구": 12, "대전광역시 동구": 439, "대전광역시 중구": 701, "대전광역시 서구": 552, "대전광역시 유성구": 374, "대전광역시 대덕구": 307, "인천광역시 동구": 39, "인천광역시 강화군": 243, "대구광역시 수성구": 245, "광주광역시 동구": 330, "광주광역시 남구": 363, "광주광역시 북구": 431, "광주광역시 서구": 1154, "광주광역시 광산구": 514, "충청남도 천안시 동남구": 739, "충청남도 공주시": 154, "충청북도 청주시 서원구": 128, "충청북도 청주시 흥덕구": 681, "경상남도 창원시 진해구": 2, "경상남도 진주시": 36, "대구광역시 달성군": 75, "전라남도 목포시": 1336, "전라남도 해남군": 209, "전라남도 영암군": 158, "전라남도 무안군": 59, "전라남도 신안군": 2, "전라남도 순천시": 909, "전라남도 여수시": 8, "제주특별자치도 제주시": 2, "전라남도 나주시": 94, "전라남도 광양시": 31, "전라남도 곡성군": 7, "전라남도 구례군": 93, "전라남도 고흥군": 44, "전라남도 장흥군": 57, "전라남도 강진군": 94, "전라남도 함평군": 6, "전라남도 진도군": 10, "경상북도 포항시 남구": 722, "경상북도 포항시 북구": 519, "경상북도 김천시": 104, "경상북도 영주시": 58, "경상북도 영천시": 3, "경상북도 영양군": 30, "경상북도 영덕군": 34, "충청북도 청주시 청원구": 235, "충청북도 청주시 상당구": 251, "충청북도 충주시": 316, "충청북도 보은군": 4, "충청북도 옥천군": 40, "충청북도 증평군": 46, "충청북도 괴산군": 5, "충청북도 진천군": 75, "충청남도 천안시 서북구": 324, "충청남도 보령시": 408, "충청남도 아산시": 516, "충청남도 서산시": 238, "충청남도 논산시": 1, "충청남도 계룡시": 11, "충청남도 금산군": 11, "충청남도 부여군": 15, "충청남도 서천군": 48, "충청남도 청양군": 4, "충청남도 홍성군": 19, "충청남도 태안군": 1}, "sgg_by_sido": {"강원특별자치도": {"춘천시": {"tot": 4, "priv": 0}, "원주시": {"tot": 2121, "priv": 537}}, "전북특별자치도": {"남원시": {"tot": 6, "priv": 0}, "완주군": {"tot": 2, "priv": 0}, "익산시": {"tot": 36, "priv": 0}}, "대구광역시": {"서구": {"tot": 250, "priv": 109}, "중구": {"tot": 54, "priv": 6}, "달서구": {"tot": 1818, "priv": 374}, "동구": {"tot": 1310, "priv": 247}, "남구": {"tot": 66, "priv": 45}, "북구": {"tot": 1370, "priv": 273}, "수성구": {"tot": 453, "priv": 245}, "달성군": {"tot": 265, "priv": 75}}, "경기도": {"수원시 장안구": {"tot": 1974, "priv": 124}, "수원시 팔달구": {"tot": 1463, "priv": 102}, "수원시 권선구": {"tot": 3472, "priv": 1123}, "수원시 영통구": {"tot": 1713, "priv": 519}, "의왕시": {"tot": 2481, "priv": 822}, "안산시 상록구": {"tot": 1994, "priv": 532}, "용인시 기흥구": {"tot": 4001, "priv": 1262}, "용인시 수지구": {"tot": 1567, "priv": 408}, "성남시 수정구": {"tot": 2340, "priv": 1152}, "성남시 중원구": {"tot": 1153, "priv": 447}, "성남시 분당구": {"tot": 1405, "priv": 434}, "하남시": {"tot": 1780, "priv": 341}, "광주시": {"tot": 238, "priv": 28}, "과천시": {"tot": 3601, "priv": 1121}, "의정부시": {"tot": 3236, "priv": 798}, "남양주시": {"tot": 3302, "priv": 664}, "양주시": {"tot": 578, "priv": 127}, "안양시 만안구": {"tot": 941, "priv": 205}, "안양시 동안구": {"tot": 616, "priv": 183}, "광명시": {"tot": 3579, "priv": 2232}, "시흥시": {"tot": 3379, "priv": 1469}, "군포시": {"tot": 2144, "priv": 826}, "부천시 원미구": {"tot": 814, "priv": 332}, "부천시 소사구": {"tot": 395, "priv": 88}, "부천시 오정구": {"tot": 1356, "priv": 735}, "평택시": {"tot": 2309, "priv": 567}, "동두천시": {"tot": 846, "priv": 337}, "포천시": {"tot": 344, "priv": 90}, "연천군": {"tot": 123, "priv": 7}, "안산시 단원구": {"tot": 1869, "priv": 272}, "고양시 일산동구": {"tot": 1400, "priv": 327}, "고양시 일산서구": {"tot": 813, "priv": 265}, "고양시 덕양구": {"tot": 3557, "priv": 1044}, "파주시": {"tot": 990, "priv": 409}, "김포시": {"tot": 669, "priv": 91}, "구리시": {"tot": 2, "priv": 0}, "오산시": {"tot": 1457, "priv": 351}, "용인시 처인구": {"tot": 6447, "priv": 3335}, "여주시": {"tot": 1, "priv": 0}, "이천시": {"tot": 1250, "priv": 362}}, "울산광역시": {"중구": {"tot": 1448, "priv": 520}, "남구": {"tot": 3753, "priv": 544}, "북구": {"tot": 652, "priv": 281}, "울주군": {"tot": 1620, "priv": 558}, "동구": {"tot": 1137, "priv": 361}}, "서울특별시": {"서초구": {"tot": 2879, "priv": 1003}, "강남구": {"tot": 1731, "priv": 721}, "송파구": {"tot": 1766, "priv": 959}, "도봉구": {"tot": 419, "priv": 65}, "노원구": {"tot": 1882, "priv": 620}, "금천구": {"tot": 417, "priv": 124}, "관악구": {"tot": 2117, "priv": 663}, "구로구": {"tot": 880, "priv": 346}, "양천구": {"tot": 536, "priv": 168}, "강서구": {"tot": 1555, "priv": 344}, "영등포구": {"tot": 1191, "priv": 608}, "종로구": {"tot": 3076, "priv": 826}, "성북구": {"tot": 2366, "priv": 1289}, "은평구": {"tot": 2160, "priv": 1285}, "서대문구": {"tot": 2203, "priv": 525}, "광진구": {"tot": 571, "priv": 129}, "중랑구": {"tot": 1212, "priv": 278}, "강동구": {"tot": 1790, "priv": 727}, "강북구": {"tot": 821, "priv": 322}, "중구": {"tot": 1314, "priv": 433}, "동대문구": {"tot": 1155, "priv": 733}, "용산구": {"tot": 1697, "priv": 920}, "성동구": {"tot": 1160, "priv": 484}, "마포구": {"tot": 1246, "priv": 241}, "동작구": {"tot": 2103, "priv": 490}}, "인천광역시": {"부평구": {"tot": 371, "priv": 137}, "남동구": {"tot": 502, "priv": 136}, "계양구": {"tot": 179, "priv": 14}, "미추홀구": {"tot": 329, "priv": 149}, "중구": {"tot": 742, "priv": 246}, "동구": {"tot": 78, "priv": 39}, "연수구": {"tot": 205, "priv": 36}, "서구": {"tot": 578, "priv": 163}, "강화군": {"tot": 351, "priv": 243}}, "부산광역시": {"기장군": {"tot": 823, "priv": 219}, "중구": {"tot": 24, "priv": 3}, "서구": {"tot": 533, "priv": 137}, "동구": {"tot": 612, "priv": 108}, "사하구": {"tot": 96, "priv": 21}, "부산진구": {"tot": 111, "priv": 30}, "영도구": {"tot": 18, "priv": 4}, "동래구": {"tot": 158, "priv": 61}, "남구": {"tot": 102, "priv": 17}, "북구": {"tot": 404, "priv": 60}, "연제구": {"tot": 33, "priv": 2}, "금정구": {"tot": 132, "priv": 72}, "수영구": {"tot": 23, "priv": 0}, "강서구": {"tot": 2707, "priv": 588}, "사상구": {"tot": 99, "priv": 12}, "해운대구": {"tot": 325, "priv": 54}}, "대전광역시": {"대덕구": {"tot": 1663, "priv": 307}, "동구": {"tot": 2071, "priv": 439}, "중구": {"tot": 2355, "priv": 701}, "서구": {"tot": 1463, "priv": 552}, "유성구": {"tot": 854, "priv": 374}}, "광주광역시": {"동구": {"tot": 888, "priv": 330}, "서구": {"tot": 4333, "priv": 1154}, "남구": {"tot": 2047, "priv": 363}, "북구": {"tot": 1052, "priv": 431}, "광산구": {"tot": 2099, "priv": 514}}, "충청남도": {"공주시": {"tot": 1119, "priv": 154}, "천안시 동남구": {"tot": 2956, "priv": 739}, "금산군": {"tot": 131, "priv": 11}, "천안시 서북구": {"tot": 1279, "priv": 324}, "아산시": {"tot": 3179, "priv": 516}, "보령시": {"tot": 1057, "priv": 408}, "서산시": {"tot": 1239, "priv": 238}, "논산시": {"tot": 6, "priv": 1}, "계룡시": {"tot": 159, "priv": 11}, "서천군": {"tot": 322, "priv": 48}, "부여군": {"tot": 36, "priv": 15}, "청양군": {"tot": 22, "priv": 4}, "홍성군": {"tot": 681, "priv": 19}, "태안군": {"tot": 2, "priv": 1}}, "충청북도": {"청주시 흥덕구": {"tot": 2207, "priv": 681}, "청주시 서원구": {"tot": 544, "priv": 128}, "청주시 청원구": {"tot": 1204, "priv": 235}, "청주시 상당구": {"tot": 887, "priv": 251}, "충주시": {"tot": 2018, "priv": 316}, "제천시": {"tot": 3, "priv": 0}, "보은군": {"tot": 316, "priv": 4}, "옥천군": {"tot": 238, "priv": 40}, "증평군": {"tot": 349, "priv": 46}, "괴산군": {"tot": 59, "priv": 5}, "진천군": {"tot": 529, "priv": 75}}, "경상남도": {"창원시 진해구": {"tot": 30, "priv": 2}, "진주시": {"tot": 55, "priv": 36}, "김해시": {"tot": 1, "priv": 0}, "양산시": {"tot": 8, "priv": 0}}, "전라남도": {"목포시": {"tot": 5682, "priv": 1336}, "해남군": {"tot": 445, "priv": 209}, "영암군": {"tot": 547, "priv": 158}, "무안군": {"tot": 412, "priv": 59}, "신안군": {"tot": 17, "priv": 2}, "여수시": {"tot": 373, "priv": 8}, "순천시": {"tot": 4452, "priv": 909}, "함평군": {"tot": 11, "priv": 6}, "나주시": {"tot": 730, "priv": 94}, "광양시": {"tot": 55, "priv": 31}, "곡성군": {"tot": 73, "priv": 7}, "구례군": {"tot": 407, "priv": 93}, "고흥군": {"tot": 475, "priv": 44}, "화순군": {"tot": 5, "priv": 0}, "장흥군": {"tot": 732, "priv": 57}, "강진군": {"tot": 805, "priv": 94}, "진도군": {"tot": 163, "priv": 10}}, "제주특별자치도": {"제주시": {"tot": 111, "priv": 2}}, "경상북도": {"포항시 북구": {"tot": 2808, "priv": 519}, "포항시 남구": {"tot": 2792, "priv": 722}, "경주시": {"tot": 13, "priv": 0}, "김천시": {"tot": 1835, "priv": 104}, "영주시": {"tot": 704, "priv": 58}, "상주시": {"tot": 1, "priv": 0}, "영천시": {"tot": 17, "priv": 3}, "영양군": {"tot": 295, "priv": 30}, "영덕군": {"tot": 308, "priv": 34}}}};
 const PYEONG = 3.3058;
 const PAGE_SIZE = 2000;
 
@@ -366,7 +390,12 @@ const state = {
   showParks: true, showParcels: true,
   expanded: false, sortKey: null, sortDir: 1, displayedRows: PAGE_SIZE,
   minYearsSince: 0, includeUnknownDate: true,
+  includeUnbuiltDae: false,   // 지목=대 AND 건물없음 케이스 추가 포함
 };
+// 미건축 대지 판정: 건물본번(bld_mnnm)이 비어있으면 미건축
+function isUnbuiltDae(p) {
+  return p.jimok === '대' && (!p.bld_mnnm || p.bld_mnnm === '0' || p.bld_mnnm === 0);
+}
 function activeJimokSet() {
   const s = new Set();
   for (const g of state.activeJimokGroups) (JIMOK_GROUPS[g]||[]).forEach(j => s.add(j));
@@ -390,20 +419,23 @@ const PARKS_URL = window.PARKS_PMTILES_URL || `${PMTILES_BASE}/parks.pmtiles`;
 // VWorld 공공 API 키 (도메인 제한). 카토 basemap이 워터마크 붙여서 vworld로 전환.
 const VWORLD_KEY = '0850E39E-6C76-3271-8205-1E5532EE03F7';
 const BASEMAPS = {
+  vwhite:   { name:'라이트',  tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/white/{z}/{y}/{x}.png`], attr:'© V-World' },
   vworld:   { name:'국토부',  tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Base/{z}/{y}/{x}.png`], attr:'© V-World' },
   vgray:    { name:'그레이',  tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/gray/{z}/{y}/{x}.png`], attr:'© V-World' },
+  vhybrid:  { name:'위성+지명',tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Hybrid/{z}/{y}/{x}.png`], attr:'© V-World' },
   vsat:     { name:'위성',    tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`], attr:'© V-World' },
+  vmidnight:{ name:'다크',    tiles:[`https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/midnight/{z}/{y}/{x}.png`], attr:'© V-World' },
   osm:      { name:'OSM',    tiles:['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'], attr:'© OSM' },
   esri_sat: { name:'ESRI위성',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], attr:'© Esri' },
 };
-let currentBasemap = 'vworld';
+let currentBasemap = 'vwhite';
 
 const map = new maplibregl.Map({
   container: 'map',
   style: {
     version: 8,
     sources: {
-      osm: { type:'raster', tiles: BASEMAPS.vworld.tiles, tileSize:256, attribution: BASEMAPS.vworld.attr },
+      osm: { type:'raster', tiles: BASEMAPS.vwhite.tiles, tileSize:256, attribution: BASEMAPS.vwhite.attr },
       parks: { type:'vector', url:'pmtiles://' + PARKS_URL },
       parcels: { type:'vector', url:'pmtiles://' + PARCELS_URL }
     },
@@ -564,7 +596,18 @@ function ownerFilter() {
 }
 function jimokFilterExpr() {
   const a = Array.from(activeJimokSet());
-  return a.length === 0 ? ['==', ['get','jimok'], '__none__'] : ['in', ['get','jimok'], ['literal', a]];
+  const base = a.length === 0 ? ['==', ['get','jimok'], '__none__'] : ['in', ['get','jimok'], ['literal', a]];
+  if (!state.includeUnbuiltDae) return base;
+  // 미건축 대지(=지목 '대' AND bld_mnnm 비어있음)를 OR로 추가
+  const unbuilt = ['all',
+    ['==', ['get','jimok'], '대'],
+    ['any',
+      ['==', ['get','bld_mnnm'], ''],
+      ['==', ['get','bld_mnnm'], '0'],
+      ['!', ['has', 'bld_mnnm']],
+    ]
+  ];
+  return ['any', base, unbuilt];
 }
 function sggFilter() {
   const active = Array.from(state.activeSggs);
@@ -691,7 +734,10 @@ function jumpIros(pnu, addr) {
   alert('주소 복사됨:\n' + clean + '\n\niros.go.kr "소재지번검색" 탭에서 붙여넣기');
   window.open('http://www.iros.go.kr/index.jsp', '_blank');
 }
-function jumpEum(pnu) { window.open(`https://www.eum.go.kr/web/am/amMain.jsp?pnu=${pnu}`, '_blank'); }
+function jumpEum(pnu) {
+  // 필지 상세 화면으로 직행. luLandDet.jsp가 pnu 파라미터를 자동 검색해 표시.
+  window.open(`https://www.eum.go.kr/web/ar/lu/luLandDet.jsp?pnu=${pnu}`, '_blank');
+}
 function copyAddr(addr) { navigator.clipboard.writeText(addr).then(()=> alert('주소 복사됨:\n' + addr)); }
 
 function updateMapFilters() {
@@ -762,7 +808,10 @@ function renderList() {
   const cutoffYear = (new Date()).getFullYear() - state.minYearsSince;
   let rows = PARCELS_LIST.filter(p => {
     const sggKey = `${p.sido_nm||''} ${p.sgg_nm||''}`;
-    if (!(state.activeOwners.has(p.owner_type) && jset.has(p.jimok) && state.activeSggs.has(sggKey))) return false;
+    if (!state.activeOwners.has(p.owner_type)) return false;
+    if (!state.activeSggs.has(sggKey)) return false;
+    // 지목: 활성 그룹에 속하거나, 미건축 대지 옵션이 켜져있고 이 필지가 미건축 대지면 통과
+    if (!(jset.has(p.jimok) || (state.includeUnbuiltDae && isUnbuiltDae(p)))) return false;
     if (state.minYearsSince > 0) {
       const py = p.park_decision_year || 0;
       if (py === 0) return state.includeUnknownDate;
@@ -788,6 +837,31 @@ function renderList() {
     });
   }
   lastRows = rows;
+  // ── 필터 합계 (상단 sticky 요약) ──
+  const sumEl = document.getElementById('summary-row');
+  if (rows.length > 0) {
+    let totalM2 = 0, totalPrice = 0;
+    const sidos = new Set();
+    for (const p of rows) {
+      const m2 = parseFloat(p.parea) || parseFloat(p.area_m2) || 0;
+      const ppm = parseFloat(p.price_per_m2) || 0;
+      totalM2 += m2;
+      totalPrice += m2 * ppm;
+      if (p.sido_nm) sidos.add(p.sido_nm);
+    }
+    const totalPy = totalM2 / PYEONG;
+    const fmtM2 = totalM2 >= 1e6 ? (totalM2/1e6).toFixed(1)+'백만㎡' : totalM2 >= 10000 ? (totalM2/10000).toFixed(1)+'만㎡' : Math.round(totalM2).toLocaleString()+'㎡';
+    const fmtPy = totalPy >= 10000 ? (totalPy/10000).toFixed(1)+'만평' : Math.round(totalPy).toLocaleString()+'평';
+    const fmtPrice = totalPrice >= 1e12 ? (totalPrice/1e12).toFixed(1)+'조원' : totalPrice >= 1e8 ? (totalPrice/1e8).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'억' : totalPrice >= 1e4 ? (totalPrice/1e4).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'만원' : Math.round(totalPrice).toLocaleString()+'원';
+    document.getElementById('sum-cnt').textContent = rows.length.toLocaleString() + '건';
+    document.getElementById('sum-area').textContent = fmtM2 + ' (' + fmtPy + ')';
+    document.getElementById('sum-price').textContent = fmtPrice;
+    document.getElementById('sum-sido').textContent = sidos.size + '개';
+    document.getElementById('summary-note').textContent = '(현재 필터 조건 적용 · 표시 500건과 무관)';
+    sumEl.style.display = 'block';
+  } else {
+    sumEl.style.display = 'none';
+  }
   const showAllBtn = document.getElementById('showAllBtn');
   if (!state.expanded) {
     const cap = Math.min(rows.length, 500);
@@ -967,7 +1041,13 @@ document.getElementById('only-private').addEventListener('click', () => {
   updateMapFilters(); renderList();
 });
 
-// 수용청구 후보 프리셋: 사유지 + 자연/녹지·공원/잡종 (대·도로·공공 제외)
+// 미건축 대지 체크박스
+document.getElementById('include-unbuilt-dae').addEventListener('change', (e) => {
+  state.includeUnbuiltDae = e.target.checked;
+  updateMapFilters(); renderList();
+});
+
+// 수용청구 후보 프리셋: 사유지 + 자연/녹지·공원/잡종 + 미건축대지 (건축된 대·도로·공공 제외)
 document.getElementById('preset-litigation').addEventListener('click', () => {
   // Owners → 사유지만
   state.activeOwners = new Set(["개인","법인"]);
@@ -975,11 +1055,14 @@ document.getElementById('preset-litigation').addEventListener('click', () => {
   // Jimok → 자연/녹지 + 공원/잡종만
   state.activeJimokGroups = new Set(["자연/녹지","공원/잡종"]);
   jimokPanel.querySelectorAll('input').forEach(cb => cb.checked = state.activeJimokGroups.has(cb.dataset.jimokGroup));
+  // 미건축 대지 자동 포함 (매수청구 유리한 알박기 케이스)
+  state.includeUnbuiltDae = true;
+  document.getElementById('include-unbuilt-dae').checked = true;
   // Park type → 공원 + 녹지 + 유원지 (광장 제외 — 도로 위)
   state.activeParkTypes = new Set(["공원","녹지","유원지"]);
   ptPanel.querySelectorAll('input').forEach(cb => cb.checked = state.activeParkTypes.has(cb.dataset.cat));
   updateMapFilters(); renderList();
-  alert('🎯 수용청구 후보 필터 적용\\n\\n• 사유지 (개인+법인)\\n• 지목: 자연/녹지·공원/잡종 (대·도로 제외)\\n• 공원·녹지·유원지 (광장 제외)\\n\\n[목록] 탭 → 면적·공시지가 정렬해서 큰 케이스부터 검토.\\n등기부 점프로 소유자 확인.');
+  alert('🎯 수용청구 후보 필터 적용\\n\\n• 사유지 (개인+법인)\\n• 지목: 자연/녹지·공원/잡종 (기건축 대·도로 제외)\\n• 🏗 미건축 대지(나대지) 포함 — 개발봉인 알박기 케이스\\n• 공원·녹지·유원지 (광장 제외)\\n\\n[목록] 탭 → 면적·공시지가 정렬해서 큰 케이스부터 검토.\\n등기부 점프로 소유자 확인.');
 });
 
 // SGG — sido-grouped accordion. composite key = "{sido} {sgg}"
