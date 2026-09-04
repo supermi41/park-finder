@@ -322,6 +322,18 @@
         <span id="row-count" style="font-size:11px;color:#86868b;"></span>
         <button type="button" id="showAllBtn" style="display:none;padding:4px 10px;background:#1d1d1f;color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;font-weight:600;">전체보기</button>
       </div>
+      <div id="summary-row" style="display:none;position:sticky;top:0;z-index:10;background:linear-gradient(180deg,#fff8f0,#fdefdb);border-bottom:2px solid #e8b96f;padding:10px 14px;font-size:12px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <span style="font-size:10.5px;font-weight:700;color:#8b5a1a;letter-spacing:.05em;text-transform:uppercase;">🇰🇷 전국 필터 합계</span>
+          <span id="summary-note" style="font-size:10.5px;color:#a68551;"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;">
+          <div><div style="font-size:10px;color:#a68551;text-transform:uppercase;letter-spacing:.05em;">필지</div><div id="sum-cnt" style="font-size:14px;font-weight:700;color:#5a3d10;font-variant-numeric:tabular-nums;">—</div></div>
+          <div><div style="font-size:10px;color:#a68551;text-transform:uppercase;letter-spacing:.05em;">면적</div><div id="sum-area" style="font-size:14px;font-weight:700;color:#5a3d10;font-variant-numeric:tabular-nums;">—</div></div>
+          <div><div style="font-size:10px;color:#a68551;text-transform:uppercase;letter-spacing:.05em;">공시지가 합</div><div id="sum-price" style="font-size:14px;font-weight:700;color:#5a3d10;font-variant-numeric:tabular-nums;">—</div></div>
+          <div><div style="font-size:10px;color:#a68551;text-transform:uppercase;letter-spacing:.05em;">시·도</div><div id="sum-sido" style="font-size:14px;font-weight:700;color:#5a3d10;font-variant-numeric:tabular-nums;">—</div></div>
+        </div>
+      </div>
       <div class="compact-list" id="compact-list">
         <div id="listLoading" style="padding:30px;text-align:center;color:#888;font-size:12px;display:none;">
           <div class="spinner" style="margin:0 auto 10px;"></div>
@@ -825,6 +837,31 @@ function renderList() {
     });
   }
   lastRows = rows;
+  // ── 필터 합계 (상단 sticky 요약) ──
+  const sumEl = document.getElementById('summary-row');
+  if (rows.length > 0) {
+    let totalM2 = 0, totalPrice = 0;
+    const sidos = new Set();
+    for (const p of rows) {
+      const m2 = parseFloat(p.parea) || parseFloat(p.area_m2) || 0;
+      const ppm = parseFloat(p.price_per_m2) || 0;
+      totalM2 += m2;
+      totalPrice += m2 * ppm;
+      if (p.sido_nm) sidos.add(p.sido_nm);
+    }
+    const totalPy = totalM2 / PYEONG;
+    const fmtM2 = totalM2 >= 1e6 ? (totalM2/1e6).toFixed(1)+'백만㎡' : totalM2 >= 10000 ? (totalM2/10000).toFixed(1)+'만㎡' : Math.round(totalM2).toLocaleString()+'㎡';
+    const fmtPy = totalPy >= 10000 ? (totalPy/10000).toFixed(1)+'만평' : Math.round(totalPy).toLocaleString()+'평';
+    const fmtPrice = totalPrice >= 1e12 ? (totalPrice/1e12).toFixed(1)+'조원' : totalPrice >= 1e8 ? (totalPrice/1e8).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'억' : totalPrice >= 1e4 ? (totalPrice/1e4).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'만원' : Math.round(totalPrice).toLocaleString()+'원';
+    document.getElementById('sum-cnt').textContent = rows.length.toLocaleString() + '건';
+    document.getElementById('sum-area').textContent = fmtM2 + ' (' + fmtPy + ')';
+    document.getElementById('sum-price').textContent = fmtPrice;
+    document.getElementById('sum-sido').textContent = sidos.size + '개';
+    document.getElementById('summary-note').textContent = '(현재 필터 조건 적용 · 표시 500건과 무관)';
+    sumEl.style.display = 'block';
+  } else {
+    sumEl.style.display = 'none';
+  }
   const showAllBtn = document.getElementById('showAllBtn');
   if (!state.expanded) {
     const cap = Math.min(rows.length, 500);
