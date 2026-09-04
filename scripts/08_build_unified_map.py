@@ -344,6 +344,12 @@ HTML = r"""<!doctype html>
       <span class="toggle-all" id="jimok-all" style="margin-left:auto;">전체</span>
       <span class="toggle-all" id="jimok-natural">자연만</span></h2>
     <div id="jimok-filters"></div>
+    <label class="filter-row" style="margin-top:4px;padding:6px 4px;background:#f0f7ff;border-radius:5px;" title="지목이 '대'인데 건물이 없는 나대지. 공원지정으로 개발 봉인당해 매수청구 유리한 알박기 케이스. 기본 필터에는 '대'가 빠져있어서 이 옵션을 켜면 미건축 나대지만 추가로 포함됨.">
+      <input type="checkbox" id="include-unbuilt-dae">
+      <span class="chip" style="background:#4a90e2;"></span>
+      <span style="font-size:12.5px;">🏗 미건축 대지 (나대지) 포함</span>
+      <span style="margin-left:auto;color:#0071e3;font-size:11px;" title="지목=대 AND 건물본번 없음">ⓘ</span>
+    </label>
     <h2>배경 지도</h2>
     <div id="basemap-picker"></div>
 
@@ -441,7 +447,12 @@ const state = {
   showParks: true, showParcels: true,
   expanded: false, sortKey: null, sortDir: 1, displayedRows: PAGE_SIZE,
   minYearsSince: 0, includeUnknownDate: true,
+  includeUnbuiltDae: false,   // 지목=대 AND 건물없음 케이스 추가 포함
 };
+// 미건축 대지 판정: 건물본번(bld_mnnm)이 비어있으면 미건축
+function isUnbuiltDae(p) {
+  return p.jimok === '대' && (!p.bld_mnnm || p.bld_mnnm === '0' || p.bld_mnnm === 0);
+}
 function activeJimokSet() {
   const s = new Set();
   for (const g of state.activeJimokGroups) (JIMOK_GROUPS[g]||[]).forEach(j => s.add(j));
@@ -642,7 +653,18 @@ function ownerFilter() {
 }
 function jimokFilterExpr() {
   const a = Array.from(activeJimokSet());
-  return a.length === 0 ? ['==', ['get','jimok'], '__none__'] : ['in', ['get','jimok'], ['literal', a]];
+  const base = a.length === 0 ? ['==', ['get','jimok'], '__none__'] : ['in', ['get','jimok'], ['literal', a]];
+  if (!state.includeUnbuiltDae) return base;
+  // 미건축 대지(=지목 '대' AND bld_mnnm 비어있음)를 OR로 추가
+  const unbuilt = ['all',
+    ['==', ['get','jimok'], '대'],
+    ['any',
+      ['==', ['get','bld_mnnm'], ''],
+      ['==', ['get','bld_mnnm'], '0'],
+      ['!', ['has', 'bld_mnnm']],
+    ]
+  ];
+  return ['any', base, unbuilt];
 }
 function sggFilter() {
   const active = Array.from(state.activeSggs);
@@ -843,7 +865,10 @@ function renderList() {
   const cutoffYear = (new Date()).getFullYear() - state.minYearsSince;
   let rows = PARCELS_LIST.filter(p => {
     const sggKey = `${p.sido_nm||''} ${p.sgg_nm||''}`;
-    if (!(state.activeOwners.has(p.owner_type) && jset.has(p.jimok) && state.activeSggs.has(sggKey))) return false;
+    if (!state.activeOwners.has(p.owner_type)) return false;
+    if (!state.activeSggs.has(sggKey)) return false;
+    // 지목: 활성 그룹에 속하거나, 미건축 대지 옵션이 켜져있고 이 필지가 미건축 대지면 통과
+    if (!(jset.has(p.jimok) || (state.includeUnbuiltDae && isUnbuiltDae(p)))) return false;
     if (state.minYearsSince > 0) {
       const py = p.park_decision_year || 0;
       if (py === 0) return state.includeUnknownDate;
@@ -1048,7 +1073,13 @@ document.getElementById('only-private').addEventListener('click', () => {
   updateMapFilters(); renderList();
 });
 
-// 수용청구 후보 프리셋: 사유지 + 자연/녹지·공원/잡종 (대·도로·공공 제외)
+// 미건축 대지 체크박스
+document.getElementById('include-unbuilt-dae').addEventListener('change', (e) => {
+  state.includeUnbuiltDae = e.target.checked;
+  updateMapFilters(); renderList();
+});
+
+// 수용청구 후보 프리셋: 사유지 + 자연/녹지·공원/잡종 + 미건축대지 (건축된 대·도로·공공 제외)
 document.getElementById('preset-litigation').addEventListener('click', () => {
   // Owners → 사유지만
   state.activeOwners = new Set(["개인","법인"]);
@@ -1056,11 +1087,14 @@ document.getElementById('preset-litigation').addEventListener('click', () => {
   // Jimok → 자연/녹지 + 공원/잡종만
   state.activeJimokGroups = new Set(["자연/녹지","공원/잡종"]);
   jimokPanel.querySelectorAll('input').forEach(cb => cb.checked = state.activeJimokGroups.has(cb.dataset.jimokGroup));
+  // 미건축 대지 자동 포함 (매수청구 유리한 알박기 케이스)
+  state.includeUnbuiltDae = true;
+  document.getElementById('include-unbuilt-dae').checked = true;
   // Park type → 공원 + 녹지 + 유원지 (광장 제외 — 도로 위)
   state.activeParkTypes = new Set(["공원","녹지","유원지"]);
   ptPanel.querySelectorAll('input').forEach(cb => cb.checked = state.activeParkTypes.has(cb.dataset.cat));
   updateMapFilters(); renderList();
-  alert('🎯 수용청구 후보 필터 적용\\n\\n• 사유지 (개인+법인)\\n• 지목: 자연/녹지·공원/잡종 (대·도로 제외)\\n• 공원·녹지·유원지 (광장 제외)\\n\\n[목록] 탭 → 면적·공시지가 정렬해서 큰 케이스부터 검토.\\n등기부 점프로 소유자 확인.');
+  alert('🎯 수용청구 후보 필터 적용\\n\\n• 사유지 (개인+법인)\\n• 지목: 자연/녹지·공원/잡종 (기건축 대·도로 제외)\\n• 🏗 미건축 대지(나대지) 포함 — 개발봉인 알박기 케이스\\n• 공원·녹지·유원지 (광장 제외)\\n\\n[목록] 탭 → 면적·공시지가 정렬해서 큰 케이스부터 검토.\\n등기부 점프로 소유자 확인.');
 });
 
 // SGG — sido-grouped accordion. composite key = "{sido} {sgg}"
